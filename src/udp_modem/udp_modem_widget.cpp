@@ -7,6 +7,10 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
 {
     configPath = QCoreApplication::applicationDirPath() + "/"+"udp_config.json";
     ui->setupUi(this);
+    ui->comboBox_word_len->addItem("int16");
+    ui->comboBox_word_len->addItem("int32");
+    ui->comboBox_data_iq->addItem("Real");
+    ui->comboBox_data_iq->addItem("I&Q");
 }
 
 udp_modem_widget::~udp_modem_widget()
@@ -15,39 +19,82 @@ udp_modem_widget::~udp_modem_widget()
 }
 
 int udp_modem_widget::init() {
-    num_channel = 6;
-    num_vheader = 8;
 
-
+    // 从json文件中加载配置
     loadConfig();
 
-    // udp ip
-
+    // 显示对应配置
+    // udp ip&port
+    ui->lineEdit_local_ip->setText(udpConfig.local_ip);
+    ui->lineEdit_local_port->setText(QString::number(udpConfig.local_port));
+    ui->lineEdit_dest_ip->setText(udpConfig.dest_ip);
+    ui->lineEdit_dest_port->setText(QString::number(udpConfig.dest_port));
 
     // channel on/off
+    for (int i = 0; i < num_channel; i++) {
+        QString cboxName = QString("checkBox_ch%1").arg(i + 1);
+        QCheckBox *checkBox = ui->groupBox_channel_config->findChild<QCheckBox *>(cboxName);
+        if (checkBox) {
+            checkBox->setCheckState(channelConfig.channels[i] ? Qt::Checked : Qt::Unchecked);
+        }
+    }
 
-    // wave params
 
-    // data format
-
-
+    // wave params，包括tableWidget和wave param区
+    num_vheader = 8;
     ui->tableWidget->setRowCount(num_channel);
     ui->tableWidget->setColumnCount(num_vheader);
-    QStringList vheaders = {"通道索引","平均功率","载波频率","采样速率","波形类型","符号速率","波形参数1","UDP包计数"};
+    QStringList vheaders = {"通道索引","平均功率/dBm","载波频率","采样速率","波形类型","符号速率","波形参数1","UDP包计数"};
     ui->tableWidget->setHorizontalHeaderLabels(vheaders);
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->verticalHeader()->setVisible(false);
+    for(int row = 0; row < num_channel; ++row){
+        ui->tableWidget->setItem(row,0,new QTableWidgetItem(QString::number(row+1)));
+        ui->tableWidget->setItem(row,1,new QTableWidgetItem(QString::number(wave_config_vec[row].avg_power)));
+        ui->tableWidget->setItem(row,2,new QTableWidgetItem(QString::number(wave_config_vec[row].carrier_freq)));
+        ui->tableWidget->setItem(row,3,new QTableWidgetItem(QString::number(wave_config_vec[row].sample_rate)));
+        ui->tableWidget->setItem(row,4,new QTableWidgetItem(wave_config_vec[row].wave_type));
+        ui->tableWidget->setItem(row,5,new QTableWidgetItem(QString::number(wave_config_vec[row].symbol_rate)));
+        ui->tableWidget->setItem(row,6,new QTableWidgetItem(QString::number(wave_config_vec[row].wave_param1)));
+        ui->tableWidget->setItem(row,7,new QTableWidgetItem(QString::number(0)));
+    }
+    updateTableWidgetBackground();
+
+    // data format
+    if(formatConfig.data_word_length == 16) {
+        ui->comboBox_word_len->setCurrentIndex(0);
+    } else{
+        ui->comboBox_word_len->setCurrentIndex(1);
+    }
+
+    if(formatConfig.data_type == "real") {
+        ui->comboBox_data_iq->setCurrentIndex(0);
+    } else{
+        ui->comboBox_data_iq->setCurrentIndex(1);
+    }
+
+
+
 
     // freq set lock with
     ui->checkBox_freqset->setCheckState(Qt::Checked);
     connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq, &FreqSpinBox::set_freq_set_lock);
 
-
     return 0;
 }
 
+QString udp_modem_widget::getLocalIPAddress() {
 
+    QList<QHostAddress> all_addrs = QNetworkInterface::allAddresses();
+    for(const QHostAddress &addr : all_addrs)
+    {
+        if(addr.protocol() == QAbstractSocket::IPv4Protocol && addr != QHostAddress(QHostAddress::LocalHost)){
+            return addr.toString();
+        }
+    }
+    return QString();
+}
 
 bool udp_modem_widget::loadConfig() {
     QFile file(configPath);
@@ -85,7 +132,6 @@ bool udp_modem_widget::loadConfig() {
 }
 
 
-
 bool udp_modem_widget::saveConfig() {
     // 产生要写入的根obj
     QJsonObject jsonObj;
@@ -109,7 +155,8 @@ bool udp_modem_widget::saveConfig() {
 }
 
 void udp_modem_widget::createDefaultConfig() {
-    udpConfig = {"192.168.0.1", 12345, "192.168.0.2", 54321};
+    QString local_ip = getLocalIPAddress();
+    udpConfig = {local_ip, 12345, "192.168.0.2", 54321};
     channelConfig.channels = {1, 0, 1, 1, 0, 1};
     wave_config_vec = {
             {13,  9900, 48000, "fsk", 75, 150, 500, 100},
@@ -143,6 +190,9 @@ void udp_modem_widget::readChannelConfig(const QJsonObject& obj) {
     channelConfig.channels.clear();
     for (auto channel : channelsArray)
         channelConfig.channels.append(channel.toInt());
+
+    // 记录通道数目
+    num_channel = channelsArray.size();
 }
 
 QJsonObject udp_modem_widget::writeChannelConfig() const {
@@ -199,3 +249,21 @@ QJsonObject udp_modem_widget::writeFormatConfig() const {
     obj["data_type"] = formatConfig.data_type;
     return obj;
 }
+
+void udp_modem_widget::updateTableWidgetBackground() {
+    for(int row = 0; row < num_channel; ++row){
+        QTableWidgetItem *item = ui->tableWidget->item(row,0);
+        if(!item){
+            continue;
+        }
+
+        if(channelConfig.channels[row]){
+            item->setBackground(QColor(144,238,144));
+        } else {
+            item->setBackground(Qt::gray);
+        }
+    }
+
+}
+
+

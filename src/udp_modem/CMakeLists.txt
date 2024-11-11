@@ -1,17 +1,13 @@
 
 set (APP_SRC
-
         main.cpp
         udp_modem_widget.cpp
         freqspinbox.cpp
-#        udp_modem_config.cpp
         )
 
 set(APP_HDRS
-
         udp_modem_widget.h
         freqspinbox.h
-#        udp_modem_config.h
         )
 
 set(APP_UIS
@@ -34,5 +30,7 @@ target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::Widgets
         ${QT_VERSION_BASE}::Sql
         ${QT_VERSION_BASE}::PrintSupport
+        ${QT_VERSION_BASE}::Network
+
 
         )

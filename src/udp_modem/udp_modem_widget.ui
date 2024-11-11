@@ -109,7 +109,7 @@
                 </widget>
                </item>
                <item row="0" column="1">
-                <widget class="QLineEdit" name="lineEdit"/>
+                <widget class="QLineEdit" name="lineEdit_local_ip"/>
                </item>
                <item row="1" column="0">
                 <widget class="QLabel" name="label_3">
@@ -119,7 +119,7 @@
                 </widget>
                </item>
                <item row="1" column="1">
-                <widget class="QLineEdit" name="lineEdit_2"/>
+                <widget class="QLineEdit" name="lineEdit_local_port"/>
                </item>
                <item row="2" column="0">
                 <widget class="QLabel" name="label_4">
@@ -129,7 +129,7 @@
                 </widget>
                </item>
                <item row="2" column="1">
-                <widget class="QLineEdit" name="lineEdit_3"/>
+                <widget class="QLineEdit" name="lineEdit_dest_ip"/>
                </item>
                <item row="3" column="0">
                 <widget class="QLabel" name="label_5">
@@ -139,7 +139,7 @@
                 </widget>
                </item>
                <item row="3" column="1">
-                <widget class="QLineEdit" name="lineEdit_4"/>
+                <widget class="QLineEdit" name="lineEdit_dest_port"/>
                </item>
               </layout>
              </widget>
@@ -148,10 +148,10 @@
           </widget>
          </item>
          <item>
-          <widget class="QWidget" name="widget_5" native="true">
+          <widget class="QWidget" name="widget_channel_config" native="true">
            <layout class="QGridLayout" name="gridLayout_3">
             <item row="0" column="0">
-             <widget class="QGroupBox" name="groupBox_2">
+             <widget class="QGroupBox" name="groupBox_channel_config">
               <property name="title">
                <string>通道状态配置</string>
               </property>
@@ -171,42 +171,42 @@
                 </widget>
                </item>
                <item row="1" column="0">
-                <widget class="QCheckBox" name="checkBox_3">
+                <widget class="QCheckBox" name="checkBox_ch1">
                  <property name="text">
                   <string>通道1</string>
                  </property>
                 </widget>
                </item>
                <item row="1" column="1">
-                <widget class="QCheckBox" name="checkBox_4">
+                <widget class="QCheckBox" name="checkBox_ch2">
                  <property name="text">
                   <string>通道2</string>
                  </property>
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QCheckBox" name="checkBox_5">
+                <widget class="QCheckBox" name="checkBox_ch3">
                  <property name="text">
                   <string>通道3</string>
                  </property>
                 </widget>
                </item>
                <item row="2" column="1">
-                <widget class="QCheckBox" name="checkBox_6">
+                <widget class="QCheckBox" name="checkBox_ch4">
                  <property name="text">
                   <string>通道4</string>
                  </property>
                 </widget>
                </item>
                <item row="3" column="0">
-                <widget class="QCheckBox" name="checkBox_7">
+                <widget class="QCheckBox" name="checkBox_ch5">
                  <property name="text">
                   <string>通道5</string>
                  </property>
                 </widget>
                </item>
                <item row="3" column="1">
-                <widget class="QCheckBox" name="checkBox_8">
+                <widget class="QCheckBox" name="checkBox_ch6">
                  <property name="text">
                   <string>通道6</string>
                  </property>
@@ -391,7 +391,7 @@
                 </widget>
                </item>
                <item row="0" column="1">
-                <widget class="QComboBox" name="comboBox_9"/>
+                <widget class="QComboBox" name="comboBox_word_len"/>
                </item>
                <item row="1" column="0">
                 <widget class="QLabel" name="label_14">
@@ -407,7 +407,7 @@
                 </widget>
                </item>
                <item row="1" column="1">
-                <widget class="QComboBox" name="comboBox_10"/>
+                <widget class="QComboBox" name="comboBox_data_iq"/>
                </item>
               </layout>
              </widget>

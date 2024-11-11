@@ -2,7 +2,41 @@
 #define UDP_MODEM_WIDGET_H
 
 #include <QWidget>
-#include "udp_modem_config.h"
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QDebug>
+#include <QNetworkInterface>
+#include <QList>
+#include <QHostAddress>
+
+struct UdpConfig {
+    QString local_ip;
+    int local_port;
+    QString dest_ip;
+    int dest_port;
+};
+
+struct ChannelConfig {
+    QVector<int> channels;
+};
+
+struct WaveConfig {
+    double avg_power;
+    int carrier_freq;
+    int sample_rate;
+    QString wave_type;
+    int symbol_rate;
+    double wave_param1;
+    int wave_internal;
+    int init_delay;
+};
+
+struct FormatConfig {
+    int data_word_length;
+    QString data_type;
+};
 
 namespace Ui {
 class udp_modem_widget;
@@ -16,8 +50,9 @@ public:
     explicit udp_modem_widget(QWidget *parent = nullptr);
 
     int init();
-    bool loadConfig();
-    bool saveConfig();
+    QString getLocalIPAddress();
+    void updateTableWidgetBackground();
+
 
     ~udp_modem_widget();
 
@@ -26,37 +61,18 @@ private:
     int num_channel;
     int num_vheader;
 
-
     QString configPath;
-    struct UdpConfig {
-        QString local_ip;
-        int local_port;
-        QString dest_ip;
-        int dest_port;
-    } udpConfig;
-
-    struct ChannelConfig {
-        QVector<int> channels;
-    } channelConfig;
-
-    struct WaveConfig {
-        double avg_power;
-        int carrier_freq;
-        int sample_rate;
-        QString wave_type;
-        int symbol_rate;
-        double wave_param1;
-        int wave_internal;
-        int init_delay;
-    };
+    UdpConfig udpConfig;
+    ChannelConfig channelConfig;
     QVector<WaveConfig> wave_config_vec;
+    FormatConfig formatConfig;
 
-    struct FormatConfig {
-        int data_word_length;
-        QString data_type;
-    } formatConfig;
+    bool loadConfig();
+    bool saveConfig();
 
+    // 对属性赋一个默认初值
     void createDefaultConfig();
+    // read 属性 from Json obj/array, write 属性 to Json obj/array
     void readUdpConfig(const QJsonObject& obj);
     QJsonObject writeUdpConfig() const;
     void readChannelConfig(const QJsonObject& obj);
