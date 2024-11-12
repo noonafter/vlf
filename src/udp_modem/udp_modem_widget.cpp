@@ -5,12 +5,31 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::udp_modem_widget)
 {
+
     configPath = QCoreApplication::applicationDirPath() + "/"+"udp_config.json";
     ui->setupUi(this);
+
+    ui->lineEdit_local_ip->setReadOnly(true);
     ui->comboBox_word_len->addItem("int16");
     ui->comboBox_word_len->addItem("int32");
     ui->comboBox_data_iq->addItem("Real");
     ui->comboBox_data_iq->addItem("I&Q");
+
+    // findChild扫描groupBox，得到channel的数量，同时connect每个checkbox
+    num_channel = 0;
+    QString cboxName = QString("checkBox_ch%1").arg(num_channel + 1);
+    QCheckBox *checkBox =  ui->groupBox_channel_config->findChild<QCheckBox *>(cboxName);
+    while(checkBox) {
+        connect(checkBox, &QCheckBox::stateChanged, this, &udp_modem_widget::on_checkBox_chx_stateChanged);
+        cboxName = QString("checkBox_ch%1").arg(++num_channel + 1);
+        checkBox = ui->groupBox_channel_config->findChild<QCheckBox *>(cboxName);
+    }
+    connect(ui->checkBox_all_channel_on, &QCheckBox::clicked, this, &udp_modem_widget::on_checkBox_all_channel_on_clicked);
+
+    // freq set lock with
+    ui->checkBox_freqset->setCheckState(Qt::Checked);
+    connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq, &FreqSpinBox::set_freq_set_lock);
+
 }
 
 udp_modem_widget::~udp_modem_widget()
@@ -23,7 +42,7 @@ int udp_modem_widget::init() {
     // 从json文件中加载配置
     loadConfig();
 
-    // 显示对应配置
+    // 显示对应配置（读取配置后，刷新一次，不用写成函数）
     // udp ip&port
     ui->lineEdit_local_ip->setText(udpConfig.local_ip);
     ui->lineEdit_local_port->setText(QString::number(udpConfig.local_port));
@@ -38,7 +57,6 @@ int udp_modem_widget::init() {
             checkBox->setCheckState(channelConfig.channels[i] ? Qt::Checked : Qt::Unchecked);
         }
     }
-
 
     // wave params，包括tableWidget和wave param区
     num_vheader = 8;
@@ -74,12 +92,6 @@ int udp_modem_widget::init() {
         ui->comboBox_data_iq->setCurrentIndex(1);
     }
 
-
-
-
-    // freq set lock with
-    ui->checkBox_freqset->setCheckState(Qt::Checked);
-    connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq, &FreqSpinBox::set_freq_set_lock);
 
     return 0;
 }
@@ -190,9 +202,6 @@ void udp_modem_widget::readChannelConfig(const QJsonObject& obj) {
     channelConfig.channels.clear();
     for (auto channel : channelsArray)
         channelConfig.channels.append(channel.toInt());
-
-    // 记录通道数目
-    num_channel = channelsArray.size();
 }
 
 QJsonObject udp_modem_widget::writeChannelConfig() const {
@@ -261,6 +270,41 @@ void udp_modem_widget::updateTableWidgetBackground() {
             item->setBackground(QColor(144,238,144));
         } else {
             item->setBackground(Qt::gray);
+        }
+    }
+}
+
+void udp_modem_widget::on_checkBox_chx_stateChanged(int state) {
+
+    QCheckBox *checkBox_cnt = qobject_cast<QCheckBox *>(sender());
+    if(checkBox_cnt) {
+        QString check_name = checkBox_cnt->objectName();
+        int ch_idx = check_name.rightRef(1).toInt() - 1;
+        channelConfig.channels[ch_idx] =  state == Qt::Checked ? 1 : 0;
+    }
+    updateTableWidgetBackground();
+
+    // 将checkBox_all_channel_on设置为clicked触发，而不是stateChanged触发，可以避免这里重复进入，导致bug
+    // clicked由用户发起，会改变所有的checkBox的状态； 而这里改变checkBox_all_channel_on的状态，只是用于显示，不会进一步触发其他操作
+    int checkedCount = 0;
+    for(int i = 0; i < num_channel; ++i){
+        checkedCount += channelConfig.channels[i];
+    }
+    if(checkedCount >= num_channel){
+        ui->checkBox_all_channel_on->setCheckState(Qt::Checked);
+    } else {
+        ui->checkBox_all_channel_on->setCheckState(Qt::Unchecked);
+    }
+
+}
+
+void udp_modem_widget::on_checkBox_all_channel_on_clicked(int state) {
+
+    Qt::CheckState c_state = state ? Qt::Checked : Qt::Unchecked;
+    for(int i = 0; i < num_channel; ++i){
+        QCheckBox *checkBox = findChild<QCheckBox *>(QString("checkBox_ch%1").arg(i+1));
+        if(checkBox){
+            checkBox->setCheckState(c_state);
         }
     }
 

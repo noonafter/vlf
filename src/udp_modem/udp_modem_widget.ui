@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1150</width>
-    <height>941</height>
+    <height>624</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,11 +25,11 @@
      <layout class="QHBoxLayout" name="horizontalLayout_2">
       <item>
        <widget class="QWidget" name="widget_display" native="true">
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <item>
+        <layout class="QGridLayout" name="gridLayout_7">
+         <item row="0" column="0" colspan="3">
           <widget class="QTableWidget" name="tableWidget">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
@@ -42,10 +42,10 @@
            </property>
           </widget>
          </item>
-         <item>
-          <widget class="QWidget" name="widget_9" native="true">
+         <item row="1" column="0">
+          <widget class="QTextEdit" name="textEdit">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
@@ -53,25 +53,117 @@
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>350</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QTextEdit" name="textEdit">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>115</height>
+             <height>0</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
              <width>16777215</width>
-             <height>100</height>
+             <height>16777215</height>
             </size>
            </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QWidget" name="widget_3" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QGroupBox" name="groupBox_4">
+              <property name="title">
+               <string>数据格式配置</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_5">
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_13">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>数据字长： </string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QComboBox" name="comboBox_word_len"/>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_14">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>数据类型：</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBox_data_iq"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QWidget" name="widget" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>110</height>
+            </size>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QGroupBox" name="groupBox_5">
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="title">
+               <string>控制区</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_6">
+               <item row="0" column="0">
+                <widget class="QPushButton" name="pushButton">
+                 <property name="text">
+                  <string>开始</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="pushButton_2">
+                 <property name="text">
+                  <string>暂停</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QPushButton" name="pushButton_3">
+                 <property name="text">
+                  <string>清除</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QPushButton" name="pushButton_4">
+                 <property name="text">
+                  <string>更新</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>
@@ -156,17 +248,24 @@
                <string>通道状态配置</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_2">
-               <item row="0" column="0">
-                <widget class="QCheckBox" name="checkBox">
+               <item row="2" column="0">
+                <widget class="QCheckBox" name="checkBox_ch3">
                  <property name="text">
-                  <string>All ON/OFF</string>
+                  <string>通道3</string>
                  </property>
                 </widget>
                </item>
-               <item row="0" column="1">
-                <widget class="QCheckBox" name="checkBox_2">
+               <item row="3" column="1">
+                <widget class="QCheckBox" name="checkBox_ch6">
                  <property name="text">
-                  <string>Random</string>
+                  <string>通道6</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="0">
+                <widget class="QCheckBox" name="checkBox_all_channel_on">
+                 <property name="text">
+                  <string>All ON/OFF</string>
                  </property>
                 </widget>
                </item>
@@ -174,20 +273,6 @@
                 <widget class="QCheckBox" name="checkBox_ch1">
                  <property name="text">
                   <string>通道1</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QCheckBox" name="checkBox_ch2">
-                 <property name="text">
-                  <string>通道2</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="0">
-                <widget class="QCheckBox" name="checkBox_ch3">
-                 <property name="text">
-                  <string>通道3</string>
                  </property>
                 </widget>
                </item>
@@ -205,10 +290,10 @@
                  </property>
                 </widget>
                </item>
-               <item row="3" column="1">
-                <widget class="QCheckBox" name="checkBox_ch6">
+               <item row="1" column="1">
+                <widget class="QCheckBox" name="checkBox_ch2">
                  <property name="text">
-                  <string>通道6</string>
+                  <string>通道2</string>
                  </property>
                 </widget>
                </item>
@@ -227,108 +312,24 @@
                <string>波形参数配置</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_4">
-               <item row="0" column="0">
-                <widget class="QLabel" name="label_15">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
+               <item row="8" column="1" colspan="2">
+                <widget class="QDoubleSpinBox" name="doubleSpinBox"/>
+               </item>
+               <item row="8" column="0">
+                <widget class="QLabel" name="label">
                  <property name="text">
-                  <string>平均功率：</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1" colspan="2">
-                <widget class="QLineEdit" name="lineEdit_5"/>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="label_6">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>载波频率：</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="FreqSpinBox" name="doubleSpinBox_carrier_freq"/>
-               </item>
-               <item row="1" column="2">
-                <widget class="QCheckBox" name="checkBox_freqset">
-                 <property name="text">
-                  <string>步进锁</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="0">
-                <widget class="QLabel" name="label_9">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>采样速率：</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_3"/>
-               </item>
-               <item row="3" column="0">
-                <widget class="QLabel" name="label_10">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>波形类型：</string>
+                  <string>噪声功率：</string>
                  </property>
                 </widget>
                </item>
                <item row="3" column="1" colspan="2">
                 <widget class="QComboBox" name="comboBox_4"/>
                </item>
-               <item row="4" column="0">
-                <widget class="QLabel" name="label_11">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>符号速率：</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_5"/>
-               </item>
-               <item row="5" column="0">
-                <widget class="QLabel" name="label_12">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>波形参数1：</string>
-                 </property>
-                </widget>
+               <item row="6" column="1" colspan="2">
+                <widget class="QSpinBox" name="spinBox"/>
                </item>
                <item row="5" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_6"/>
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_3"/>
                </item>
                <item row="6" column="0">
                 <widget class="QLabel" name="label_7">
@@ -343,8 +344,28 @@
                  </property>
                 </widget>
                </item>
-               <item row="6" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_7"/>
+               <item row="1" column="2">
+                <widget class="QCheckBox" name="checkBox_freqset">
+                 <property name="text">
+                  <string>步进锁</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="1" colspan="2">
+                <widget class="QComboBox" name="comboBox_5"/>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label_10">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>波形类型：</string>
+                 </property>
+                </widget>
                </item>
                <item row="7" column="0">
                 <widget class="QLabel" name="label_8">
@@ -359,26 +380,56 @@
                  </property>
                 </widget>
                </item>
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_15">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>平均功率：</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_6">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>载波频率：</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1" colspan="2">
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_2"/>
+               </item>
+               <item row="4" column="0">
+                <widget class="QLabel" name="label_11">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>符号速率：</string>
+                 </property>
+                </widget>
+               </item>
                <item row="7" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_8"/>
+                <widget class="QSpinBox" name="spinBox_2"/>
                </item>
-              </layout>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="widget_3" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QGroupBox" name="groupBox_4">
-              <property name="title">
-               <string>数据格式配置</string>
-              </property>
-              <layout class="QGridLayout" name="gridLayout_5">
-               <item row="0" column="0">
-                <widget class="QLabel" name="label_13">
+               <item row="1" column="1">
+                <widget class="FreqSpinBox" name="doubleSpinBox_carrier_freq"/>
+               </item>
+               <item row="5" column="0">
+                <widget class="QLabel" name="label_12">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                    <horstretch>0</horstretch>
@@ -386,15 +437,15 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>数据字长： </string>
+                  <string>波形参数1：</string>
                  </property>
                 </widget>
                </item>
-               <item row="0" column="1">
-                <widget class="QComboBox" name="comboBox_word_len"/>
+               <item row="2" column="1" colspan="2">
+                <widget class="QComboBox" name="comboBox_3"/>
                </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="label_14">
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_9">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                    <horstretch>0</horstretch>
@@ -402,65 +453,7 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>数据类型：</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QComboBox" name="comboBox_data_iq"/>
-               </item>
-              </layout>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="widget" native="true">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>110</height>
-            </size>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QGroupBox" name="groupBox_5">
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="title">
-               <string>控制区</string>
-              </property>
-              <layout class="QGridLayout" name="gridLayout_6">
-               <item row="0" column="0">
-                <widget class="QPushButton" name="pushButton">
-                 <property name="text">
-                  <string>开始</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QPushButton" name="pushButton_2">
-                 <property name="text">
-                  <string>暂停</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QPushButton" name="pushButton_3">
-                 <property name="text">
-                  <string>清除</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QPushButton" name="pushButton_4">
-                 <property name="text">
-                  <string>更新</string>
+                  <string>采样速率：</string>
                  </property>
                 </widget>
                </item>

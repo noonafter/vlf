@@ -48,13 +48,14 @@ class udp_modem_widget : public QWidget
 
 public:
     explicit udp_modem_widget(QWidget *parent = nullptr);
+    ~udp_modem_widget();
 
     int init();
     QString getLocalIPAddress();
-    void updateTableWidgetBackground();
 
-
-    ~udp_modem_widget();
+public slots:
+    void on_checkBox_chx_stateChanged(int state);
+    void on_checkBox_all_channel_on_clicked(int state);
 
 private:
     Ui::udp_modem_widget *ui;
@@ -67,9 +68,11 @@ private:
     QVector<WaveConfig> wave_config_vec;
     FormatConfig formatConfig;
 
+    // 根据类属性更新控件
+    void updateTableWidgetBackground();
+
     bool loadConfig();
     bool saveConfig();
-
     // 对属性赋一个默认初值
     void createDefaultConfig();
     // read 属性 from Json obj/array, write 属性 to Json obj/array
@@ -81,6 +84,8 @@ private:
     QJsonArray writeWaveConfig() const;
     void readFormatConfig(const QJsonObject& obj);
     QJsonObject writeFormatConfig() const;
+
+
 };
 
 #endif // UDP_MODEM_WIDGET_H
