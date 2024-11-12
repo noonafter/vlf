@@ -42,7 +42,7 @@ int udp_modem_widget::init() {
     // 从json文件中加载配置
     loadConfig();
 
-    // 显示对应配置（读取配置后，刷新一次，不用写成函数）
+    // 更新控件（读取配置后，更新一次，不用写成函数）
     // udp ip&port
     ui->lineEdit_local_ip->setText(udpConfig.local_ip);
     ui->lineEdit_local_port->setText(QString::number(udpConfig.local_port));
