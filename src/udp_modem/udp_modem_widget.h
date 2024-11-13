@@ -10,6 +10,7 @@
 #include <QNetworkInterface>
 #include <QList>
 #include <QHostAddress>
+#include <QMessageBox>
 
 struct UdpConfig {
     QString local_ip;
@@ -28,7 +29,7 @@ struct WaveConfig {
     int sample_rate;
     QString wave_type;
     int symbol_rate;
-    double wave_param1;
+    int wave_param1;
     int wave_internal;
     int init_delay;
 };
@@ -36,6 +37,10 @@ struct WaveConfig {
 struct FormatConfig {
     int data_word_length;
     QString data_type;
+};
+
+struct NoiseConfig {
+    double noise_power_allband;
 };
 
 namespace Ui {
@@ -54,22 +59,31 @@ public:
     QString getLocalIPAddress();
 
 public slots:
-    void on_checkBox_chx_stateChanged(int state);
-    void on_checkBox_all_channel_on_clicked(int state);
+    // 如果写为on_<obj_name>_<signal>, ui_头文件会进行自动连接一次，但有的可能识别不了，no matching signal
+    // 最好改为slot_<obj_name>_<signal>，手动connect
+    void slot_checkBox_chx_stateChanged(int state);
+    void slot_checkBox_all_channel_on_clicked(int state);
+    void slot_tableWidget_cell_clicked(int row, int col);
+    void slot_doubleSpinBox_avg_power_editingFinished();
+    void slot_doubleSpinBox_carrier_freq_editingFinished();
 
 private:
     Ui::udp_modem_widget *ui;
     int num_channel;
     int num_vheader;
+    int current_set_channel;
 
     QString configPath;
     UdpConfig udpConfig;
     ChannelConfig channelConfig;
     QVector<WaveConfig> wave_config_vec;
     FormatConfig formatConfig;
+    NoiseConfig noiseConfig;
+
 
     // 根据类属性更新控件
     void updateTableWidgetBackground();
+    void updateTableWidgetRowItems(int row);
 
     bool loadConfig();
     bool saveConfig();
@@ -84,8 +98,8 @@ private:
     QJsonArray writeWaveConfig() const;
     void readFormatConfig(const QJsonObject& obj);
     QJsonObject writeFormatConfig() const;
-
-
+    void readNoiseConfig(const QJsonObject &obj);
+    QJsonObject writeNoiseConfig() const;
 };
 
 #endif // UDP_MODEM_WIDGET_H

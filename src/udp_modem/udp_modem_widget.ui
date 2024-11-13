@@ -307,29 +307,30 @@
           <widget class="QWidget" name="widget_6" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_3">
             <item>
-             <widget class="QGroupBox" name="groupBox_3">
+             <widget class="QGroupBox" name="groupBox_waveparam">
               <property name="title">
                <string>波形参数配置</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_4">
                <item row="8" column="1" colspan="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox"/>
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_noise_power"/>
                </item>
                <item row="8" column="0">
-                <widget class="QLabel" name="label">
+                <widget class="QLabel" name="label_noise_power">
                  <property name="text">
                   <string>噪声功率：</string>
                  </property>
                 </widget>
                </item>
                <item row="3" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_4"/>
+                <widget class="QComboBox" name="comboBox_wave_type"/>
                </item>
                <item row="6" column="1" colspan="2">
-                <widget class="QSpinBox" name="spinBox"/>
-               </item>
-               <item row="5" column="1" colspan="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_3"/>
+                <widget class="QSpinBox" name="spinBox_waveinternal">
+                 <property name="maximum">
+                  <number>1000</number>
+                 </property>
+                </widget>
                </item>
                <item row="6" column="0">
                 <widget class="QLabel" name="label_7">
@@ -352,7 +353,7 @@
                 </widget>
                </item>
                <item row="4" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_5"/>
+                <widget class="QComboBox" name="comboBox_symbol_rate"/>
                </item>
                <item row="3" column="0">
                 <widget class="QLabel" name="label_10">
@@ -407,7 +408,7 @@
                 </widget>
                </item>
                <item row="0" column="1" colspan="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_2"/>
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_avg_power"/>
                </item>
                <item row="4" column="0">
                 <widget class="QLabel" name="label_11">
@@ -423,13 +424,17 @@
                 </widget>
                </item>
                <item row="7" column="1" colspan="2">
-                <widget class="QSpinBox" name="spinBox_2"/>
+                <widget class="QSpinBox" name="spinBox_init_delay">
+                 <property name="maximum">
+                  <number>1000</number>
+                 </property>
+                </widget>
                </item>
                <item row="1" column="1">
                 <widget class="FreqSpinBox" name="doubleSpinBox_carrier_freq"/>
                </item>
                <item row="5" column="0">
-                <widget class="QLabel" name="label_12">
+                <widget class="QLabel" name="label_wave_param">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                    <horstretch>0</horstretch>
@@ -442,10 +447,10 @@
                 </widget>
                </item>
                <item row="2" column="1" colspan="2">
-                <widget class="QComboBox" name="comboBox_3"/>
+                <widget class="QComboBox" name="comboBox_sample_rate"/>
                </item>
                <item row="2" column="0">
-                <widget class="QLabel" name="label_9">
+                <widget class="QLabel" name="label_sample_rate">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                    <horstretch>0</horstretch>
@@ -454,6 +459,16 @@
                  </property>
                  <property name="text">
                   <string>采样速率：</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="1" colspan="2">
+                <widget class="QSpinBox" name="spinBox_waveparam1">
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>65536</number>
                  </property>
                 </widget>
                </item>
