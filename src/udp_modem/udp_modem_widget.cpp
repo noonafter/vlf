@@ -2,11 +2,10 @@
 #include "ui_udp_modem_widget.h"
 
 udp_modem_widget::udp_modem_widget(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::udp_modem_widget)
-{
+        QWidget(parent),
+        ui(new Ui::udp_modem_widget) {
 
-    configPath = QCoreApplication::applicationDirPath() + "/"+"udp_config.json";
+    configPath = QCoreApplication::applicationDirPath() + "/" + "udp_config.json";
     ui->setupUi(this);
     ui->label_sample_rate->setStyleSheet("color: red;");
     ui->label_noise_power->setStyleSheet("color: red;");
@@ -14,7 +13,7 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     QString str = "\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b";
     ui->lineEdit_local_ip->setReadOnly(true);
     ui->lineEdit_local_port->setValidator(new QIntValidator(0, 65535, this));
-    ui->lineEdit_dest_ip->setValidator(new QRegExpValidator(QRegExp(str),this));
+    ui->lineEdit_dest_ip->setValidator(new QRegExpValidator(QRegExp(str), this));
     ui->lineEdit_dest_port->setValidator(new QIntValidator(0, 65535, this));
 
 
@@ -26,6 +25,7 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     ui->doubleSpinBox_avg_power->setSuffix(" dBm");
     ui->comboBox_sample_rate->addItem(("48000 Hz"));
     ui->comboBox_sample_rate->addItem(("96000 Hz"));
+    ui->comboBox_sample_rate->addItem(("192000 Hz"));
     ui->comboBox_symbol_rate->addItem("75 Hz");
     ui->comboBox_symbol_rate->addItem("150 Hz");
     ui->comboBox_wave_type->addItem("FSK");
@@ -35,6 +35,15 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     ui->spinBox_init_delay->setSuffix(" ms");
     ui->doubleSpinBox_noise_power->setSuffix(" dBm");
 
+    // connect udp ip&port
+    connect(ui->lineEdit_local_port, &QLineEdit::editingFinished, this,
+            &udp_modem_widget::slot_lineEdit_local_port_editingFinished);
+    connect(ui->lineEdit_dest_ip, &QLineEdit::editingFinished, this,
+            &udp_modem_widget::slot_lineEdit_dest_ip_editingFinished);
+    connect(ui->lineEdit_dest_port, &QLineEdit::editingFinished, this,
+            &udp_modem_widget::slot_lineEdit_dest_port_editingFinished);
+
+    // connect channel config
     // findChild扫描groupBox，得到channel的数量，同时connect每个checkbox
     num_channel = 0;
     QString cboxName = QString("checkBox_ch%1").arg(num_channel + 1);
@@ -44,20 +53,43 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
         cboxName = QString("checkBox_ch%1").arg(++num_channel + 1);
         checkBox = ui->groupBox_channel_config->findChild<QCheckBox *>(cboxName);
     }
-    connect(ui->checkBox_all_channel_on, &QCheckBox::clicked, this, &udp_modem_widget::slot_checkBox_all_channel_on_clicked);
+    connect(ui->checkBox_all_channel_on, &QCheckBox::clicked, this,
+            &udp_modem_widget::slot_checkBox_all_channel_on_clicked);
 
-    // wave config
+    // connect wave config
     connect(ui->tableWidget, &QTableWidget::cellClicked, this, &udp_modem_widget::slot_tableWidget_cell_clicked);
-    connect(ui->doubleSpinBox_avg_power, &QDoubleSpinBox::editingFinished, this, &udp_modem_widget::slot_doubleSpinBox_avg_power_editingFinished);
-    connect(ui->doubleSpinBox_carrier_freq, &QDoubleSpinBox::editingFinished, this, &udp_modem_widget::slot_doubleSpinBox_carrier_freq_editingFinished);
+    connect(ui->doubleSpinBox_avg_power, &QDoubleSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_doubleSpinBox_avg_power_editingFinished);
+    connect(ui->doubleSpinBox_carrier_freq, &QDoubleSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_doubleSpinBox_carrier_freq_editingFinished);
+    connect(ui->comboBox_sample_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+            &udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged);
+    connect(ui->comboBox_wave_type, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+            &udp_modem_widget::slot_comboBox_wave_type_currentIndexChanged);
+    connect(ui->comboBox_symbol_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+            &udp_modem_widget::slot_comboBox_symbol_rate_currentIndexChanged);
+    connect(ui->spinBox_waveparam1, &QSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_spinBox_waveparam1_editingFinished);
+    connect(ui->spinBox_waveinternal, &QSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_spinBox_waveinternal_editingFinished);
+    connect(ui->spinBox_init_delay, &QSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_spinBox_init_delay_editingFinished);
+    connect(ui->doubleSpinBox_noise_power, &QDoubleSpinBox::editingFinished, this,
+            &udp_modem_widget::slot_doubleSpinBox_noise_power_editingFinished);
+    connect(ui->comboBox_word_len, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+            &udp_modem_widget::slot_comboBox_word_len_currentIndexChanged);
+    connect(ui->comboBox_data_iq, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+            &udp_modem_widget::slot_comboBox_data_iq_currentIndexChanged);
     // freq set lock
-    connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq, &FreqSpinBox::set_freq_set_lock);
+    connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq,
+            &FreqSpinBox::set_freq_set_lock);
 
 }
 
-udp_modem_widget::~udp_modem_widget()
-{
+udp_modem_widget::~udp_modem_widget() {
+    saveConfig();
     delete ui;
+
 }
 
 int udp_modem_widget::init() {
@@ -85,35 +117,35 @@ int udp_modem_widget::init() {
     num_vheader = 8;
     ui->tableWidget->setRowCount(num_channel);
     ui->tableWidget->setColumnCount(num_vheader);
-    QStringList vheaders = {"通道索引","平均功率/dBm","载波频率","采样速率","波形类型","符号速率","波形参数1","UDP包计数"};
+    QStringList vheaders = {"通道索引", "平均功率/dBm", "载波频率", "采样速率", "波形类型", "符号速率", "波形参数1", "UDP包计数"};
     ui->tableWidget->setHorizontalHeaderLabels(vheaders);
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->verticalHeader()->setVisible(false);
-    for(int row = 0; row < num_channel; ++row){
-        ui->tableWidget->setItem(row,0,new QTableWidgetItem(QString::number(row+1)));
-        ui->tableWidget->setItem(row,1,new QTableWidgetItem(QString::number(wave_config_vec[row].avg_power)));
-        ui->tableWidget->setItem(row,2,new QTableWidgetItem(QString::number(wave_config_vec[row].carrier_freq)));
-        ui->tableWidget->setItem(row,3,new QTableWidgetItem(QString::number(wave_config_vec[row].sample_rate)));
-        ui->tableWidget->setItem(row,4,new QTableWidgetItem(wave_config_vec[row].wave_type));
-        ui->tableWidget->setItem(row,5,new QTableWidgetItem(QString::number(wave_config_vec[row].symbol_rate)));
-        ui->tableWidget->setItem(row,6,new QTableWidgetItem(QString::number(wave_config_vec[row].wave_param1)));
-        ui->tableWidget->setItem(row,7,new QTableWidgetItem(QString::number(0)));
+    for (int row = 0; row < num_channel; ++row) {
+        ui->tableWidget->setItem(row, 0, new QTableWidgetItem(QString::number(row + 1)));
+        ui->tableWidget->setItem(row, 1, new QTableWidgetItem(QString::number(wave_config_vec[row].avg_power)));
+        ui->tableWidget->setItem(row, 2, new QTableWidgetItem(QString::number(wave_config_vec[row].carrier_freq)));
+        ui->tableWidget->setItem(row, 3, new QTableWidgetItem(QString::number(wave_config_vec[row].sample_rate)));
+        ui->tableWidget->setItem(row, 4, new QTableWidgetItem(wave_config_vec[row].wave_type));
+        ui->tableWidget->setItem(row, 5, new QTableWidgetItem(QString::number(wave_config_vec[row].symbol_rate)));
+        ui->tableWidget->setItem(row, 6, new QTableWidgetItem(QString::number(wave_config_vec[row].wave_param1)));
+        ui->tableWidget->setItem(row, 7, new QTableWidgetItem(QString::number(0)));
     }
     updateTableWidgetBackground();
     // 默认选中第一行，第一列
     slot_tableWidget_cell_clicked(0, 0);
 
     // data format
-    if(formatConfig.data_word_length == 16) {
+    if (formatConfig.data_word_length == 16) {
         ui->comboBox_word_len->setCurrentIndex(0);
-    } else{
+    } else {
         ui->comboBox_word_len->setCurrentIndex(1);
     }
 
-    if(formatConfig.data_type == "real") {
+    if (formatConfig.data_type == "Real") {
         ui->comboBox_data_iq->setCurrentIndex(0);
-    } else{
+    } else {
         ui->comboBox_data_iq->setCurrentIndex(1);
     }
 
@@ -124,9 +156,8 @@ int udp_modem_widget::init() {
 QString udp_modem_widget::getLocalIPAddress() {
 
     QList<QHostAddress> all_addrs = QNetworkInterface::allAddresses();
-    for(const QHostAddress &addr : all_addrs)
-    {
-        if(addr.protocol() == QAbstractSocket::IPv4Protocol && addr != QHostAddress(QHostAddress::LocalHost)){
+    for (const QHostAddress &addr: all_addrs) {
+        if (addr.protocol() == QAbstractSocket::IPv4Protocol && addr != QHostAddress(QHostAddress::LocalHost)) {
             return addr.toString();
         }
     }
@@ -190,6 +221,7 @@ bool udp_modem_widget::saveConfig() {
     }
     file.write(doc.toJson());
     file.close();
+    qDebug() << "write over";
     return true;
 }
 
@@ -205,11 +237,11 @@ void udp_modem_widget::createDefaultConfig() {
             {14, 11100, 48000, "MSK", 75,  3,   500, 150},
             {14, 11400, 48000, "FSK", 150, 300, 500, 100}
     };
-    formatConfig = {16, "real"};
+    formatConfig = {16, "Real"};
     noiseConfig = {1.0};
 }
 
-void udp_modem_widget::readUdpConfig(const QJsonObject& obj) {
+void udp_modem_widget::readUdpConfig(const QJsonObject &obj) {
     udpConfig.local_ip = obj["local_ip"].toString();
     udpConfig.local_port = obj["local_port"].toInt();
     udpConfig.dest_ip = obj["dest_ip"].toString();
@@ -225,25 +257,25 @@ QJsonObject udp_modem_widget::writeUdpConfig() const {
     return obj;
 }
 
-void udp_modem_widget::readChannelConfig(const QJsonObject& obj) {
+void udp_modem_widget::readChannelConfig(const QJsonObject &obj) {
     QJsonArray channelsArray = obj["channels"].toArray();
     channelConfig.channels.clear();
-    for (auto channel : channelsArray)
+    for (auto channel: channelsArray)
         channelConfig.channels.append(channel.toInt());
 }
 
 QJsonObject udp_modem_widget::writeChannelConfig() const {
     QJsonObject obj;
     QJsonArray channelsArray;
-    for (auto channel : channelConfig.channels)
+    for (auto channel: channelConfig.channels)
         channelsArray.append(channel);
     obj["channels"] = channelsArray;
     return obj;
 }
 
-void udp_modem_widget::readWaveConfig(const QJsonArray& array) {
+void udp_modem_widget::readWaveConfig(const QJsonArray &array) {
     wave_config_vec.clear();
-    for (auto value : array) {
+    for (auto value: array) {
         QJsonObject waveObj = value.toObject();
         WaveConfig wave;
         wave.avg_power = waveObj["avg_power"].toDouble();
@@ -260,7 +292,7 @@ void udp_modem_widget::readWaveConfig(const QJsonArray& array) {
 
 QJsonArray udp_modem_widget::writeWaveConfig() const {
     QJsonArray array;
-    for (const auto& wave : wave_config_vec) {
+    for (const auto &wave: wave_config_vec) {
         QJsonObject waveObj;
         waveObj["avg_power"] = wave.avg_power;
         waveObj["carrier_freq"] = wave.carrier_freq;
@@ -275,7 +307,7 @@ QJsonArray udp_modem_widget::writeWaveConfig() const {
     return array;
 }
 
-void udp_modem_widget::readFormatConfig(const QJsonObject& obj) {
+void udp_modem_widget::readFormatConfig(const QJsonObject &obj) {
     formatConfig.data_word_length = obj["data_word_length"].toInt();
     formatConfig.data_type = obj["data_type"].toString();
 }
@@ -298,14 +330,14 @@ QJsonObject udp_modem_widget::writeNoiseConfig() const {
 }
 
 void udp_modem_widget::updateTableWidgetBackground() {
-    for(int row = 0; row < num_channel; ++row){
-        QTableWidgetItem *item = ui->tableWidget->item(row,0);
-        if(!item){
+    for (int row = 0; row < num_channel; ++row) {
+        QTableWidgetItem *item = ui->tableWidget->item(row, 0);
+        if (!item) {
             continue;
         }
 
-        if(channelConfig.channels[row]){
-            item->setBackground(QColor(144,238,144));
+        if (channelConfig.channels[row]) {
+            item->setBackground(QColor(144, 238, 144));
         } else {
             item->setBackground(Qt::gray);
         }
@@ -313,33 +345,33 @@ void udp_modem_widget::updateTableWidgetBackground() {
 }
 
 void udp_modem_widget::updateTableWidgetRowItems(int row) {
-    ui->tableWidget->setItem(row,0,new QTableWidgetItem(QString::number(row+1)));
-    ui->tableWidget->setItem(row,1,new QTableWidgetItem(QString::number(wave_config_vec[row].avg_power)));
-    ui->tableWidget->setItem(row,2,new QTableWidgetItem(QString::number(wave_config_vec[row].carrier_freq)));
-    ui->tableWidget->setItem(row,3,new QTableWidgetItem(QString::number(wave_config_vec[row].sample_rate)));
-    ui->tableWidget->setItem(row,4,new QTableWidgetItem(wave_config_vec[row].wave_type));
-    ui->tableWidget->setItem(row,5,new QTableWidgetItem(QString::number(wave_config_vec[row].symbol_rate)));
-    ui->tableWidget->setItem(row,6,new QTableWidgetItem(QString::number(wave_config_vec[row].wave_param1)));
-    ui->tableWidget->setItem(row,7,new QTableWidgetItem(QString::number(0)));
+    ui->tableWidget->setItem(row, 0, new QTableWidgetItem(QString::number(row + 1)));
+    ui->tableWidget->setItem(row, 1, new QTableWidgetItem(QString::number(wave_config_vec[row].avg_power)));
+    ui->tableWidget->setItem(row, 2, new QTableWidgetItem(QString::number(wave_config_vec[row].carrier_freq)));
+    ui->tableWidget->setItem(row, 3, new QTableWidgetItem(QString::number(wave_config_vec[row].sample_rate)));
+    ui->tableWidget->setItem(row, 4, new QTableWidgetItem(wave_config_vec[row].wave_type));
+    ui->tableWidget->setItem(row, 5, new QTableWidgetItem(QString::number(wave_config_vec[row].symbol_rate)));
+    ui->tableWidget->setItem(row, 6, new QTableWidgetItem(QString::number(wave_config_vec[row].wave_param1)));
+    ui->tableWidget->setItem(row, 7, new QTableWidgetItem(QString::number(0)));
 }
 
 void udp_modem_widget::slot_checkBox_chx_stateChanged(int state) {
 
     QCheckBox *checkBox_cnt = qobject_cast<QCheckBox *>(sender());
-    if(checkBox_cnt) {
+    if (checkBox_cnt) {
         QString check_name = checkBox_cnt->objectName();
         int ch_idx = check_name.rightRef(1).toInt() - 1;
-        channelConfig.channels[ch_idx] =  state == Qt::Checked ? 1 : 0;
+        channelConfig.channels[ch_idx] = state == Qt::Checked ? 1 : 0;
     }
     updateTableWidgetBackground();
 
     // 将checkBox_all_channel_on设置为clicked触发，而不是stateChanged触发，可以避免这里重复进入，导致bug
     // clicked由用户发起，会改变所有的checkBox的状态； 而这里改变checkBox_all_channel_on的状态，只是用于显示，不会进一步触发其他操作
     int checkedCount = 0;
-    for(int i = 0; i < num_channel; ++i){
+    for (int i = 0; i < num_channel; ++i) {
         checkedCount += channelConfig.channels[i];
     }
-    if(checkedCount >= num_channel){
+    if (checkedCount >= num_channel) {
         ui->checkBox_all_channel_on->setCheckState(Qt::Checked);
     } else {
         ui->checkBox_all_channel_on->setCheckState(Qt::Unchecked);
@@ -350,9 +382,9 @@ void udp_modem_widget::slot_checkBox_chx_stateChanged(int state) {
 void udp_modem_widget::slot_checkBox_all_channel_on_clicked(int state) {
 
     Qt::CheckState c_state = state ? Qt::Checked : Qt::Unchecked;
-    for(int i = 0; i < num_channel; ++i){
-        QCheckBox *checkBox = findChild<QCheckBox *>(QString("checkBox_ch%1").arg(i+1));
-        if(checkBox){
+    for (int i = 0; i < num_channel; ++i) {
+        QCheckBox *checkBox = findChild<QCheckBox *>(QString("checkBox_ch%1").arg(i + 1));
+        if (checkBox) {
             checkBox->setCheckState(c_state);
         }
     }
@@ -366,23 +398,17 @@ void udp_modem_widget::slot_tableWidget_cell_clicked(int row, int col) {
     current_set_channel = row;
     WaveConfig wavec = wave_config_vec[row];
 
-    QString gtitle = QString("波形参数配置-通道%1").arg(row+1);
+    QString gtitle = QString("波形参数配置-通道%1").arg(row + 1);
     ui->groupBox_waveparam->setTitle(gtitle);
     ui->doubleSpinBox_avg_power->setValue(wavec.avg_power);
     ui->doubleSpinBox_carrier_freq->setValue(wavec.carrier_freq / 1000.0);
-    if(wavec.sample_rate == 48000)
-    {
-        ui->comboBox_sample_rate->setCurrentIndex(0);
-    }else{
-        ui->comboBox_sample_rate->setCurrentIndex(1);
-    }
+    ui->comboBox_sample_rate->setCurrentText(QString::number(wavec.sample_rate)+" Hz");
 
-    if(wavec.wave_type == "FSK")
-    {
+    if (wavec.wave_type == "FSK") {
         ui->comboBox_wave_type->setCurrentIndex(0);
         ui->label_wave_param->setText("频率间隔：");
         ui->spinBox_waveparam1->setSuffix(" Hz");
-    } else{
+    } else {
         ui->comboBox_wave_type->setCurrentIndex(1);
         ui->label_wave_param->setText("初始相位：");
         ui->spinBox_waveparam1->setSuffix(" pi/2");
@@ -413,10 +439,10 @@ void udp_modem_widget::slot_doubleSpinBox_avg_power_editingFinished() {
 void udp_modem_widget::slot_doubleSpinBox_carrier_freq_editingFinished() {
 
     int row = current_set_channel;
-    int prepare_freq = (int)(ui->doubleSpinBox_carrier_freq->value() * 1000);
+    int prepare_freq = (int) (ui->doubleSpinBox_carrier_freq->value() * 1000);
 
-    for(int i = 0; i < num_channel; ++i){
-        if(i != row && wave_config_vec[i].carrier_freq == prepare_freq){
+    for (int i = 0; i < num_channel; ++i) {
+        if (i != row && wave_config_vec[i].carrier_freq == prepare_freq) {
             // 先警告（阻塞），用户点击ok后，再将值改变回来，提升用户体验
             ui->doubleSpinBox_carrier_freq->blockSignals(true);
             QMessageBox::warning(ui->doubleSpinBox_carrier_freq, "警告", "与其他通道频率重复");
@@ -434,6 +460,145 @@ void udp_modem_widget::slot_doubleSpinBox_carrier_freq_editingFinished() {
     ui->doubleSpinBox_carrier_freq->blockSignals(true);
     ui->doubleSpinBox_carrier_freq->clearFocus();
     ui->doubleSpinBox_carrier_freq->blockSignals(false);
+
+}
+
+void udp_modem_widget::slot_lineEdit_local_port_editingFinished() {
+
+    // 更新类属性
+    udpConfig.local_port = ui->lineEdit_local_port->text().toInt();
+
+    ui->lineEdit_local_port->blockSignals(true);
+    ui->lineEdit_local_port->clearFocus();
+    ui->lineEdit_local_port->blockSignals(false);
+}
+
+void udp_modem_widget::slot_lineEdit_dest_ip_editingFinished() {
+
+    // 更新类属性
+    udpConfig.dest_ip = ui->lineEdit_dest_ip->text();
+
+    ui->lineEdit_dest_ip->blockSignals(true);
+    ui->lineEdit_dest_ip->clearFocus();
+    ui->lineEdit_dest_ip->blockSignals(false);
+
+}
+
+void udp_modem_widget::slot_lineEdit_dest_port_editingFinished() {
+
+    // 更新类属性
+    udpConfig.dest_port = ui->lineEdit_dest_port->text().toInt();
+
+    ui->lineEdit_dest_port->blockSignals(true);
+    ui->lineEdit_dest_port->clearFocus();
+    ui->lineEdit_dest_port->blockSignals(false);
+
+}
+
+void udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged(const QString &text) {
+
+    int row = 0;
+    for (auto &wave: wave_config_vec) {
+        // 更新类属性
+        wave.sample_rate = text.leftRef(text.length() - 3).toInt();
+        // 更新界面
+        ui->tableWidget->item(row++, 3)->setText(QString::number(wave.sample_rate));
+    }
+
+}
+
+void udp_modem_widget::slot_comboBox_wave_type_currentIndexChanged(const QString &text) {
+
+    WaveConfig *wavec = &wave_config_vec[current_set_channel];
+    // 更新类属性
+    wavec->wave_type = text;
+    // 更新界面
+    ui->tableWidget->item(current_set_channel, 4)->setText(text);
+
+    if (text == "FSK") {
+        ui->label_wave_param->setText("频率间隔：");
+        ui->spinBox_waveparam1->setSuffix(" Hz");
+        // FSK freq_sep默认设置为2*fsy，减少控件间的耦合
+//        ui->spinBox_waveparam1->setValue(wavec->wave_param1 = wavec->symbol_rate * 2);
+    } else {
+        ui->label_wave_param->setText("初始相位：");
+        ui->spinBox_waveparam1->setSuffix(" pi/2");
+        // MSK 初始相位默认设置为0
+//        ui->spinBox_waveparam1->setValue(wavec->wave_param1 = 0);
+    }
+    ui->tableWidget->item(current_set_channel, 6)->setText(QString::number(wavec->wave_param1));
+}
+
+void udp_modem_widget::slot_comboBox_symbol_rate_currentIndexChanged(const QString &text) {
+
+    WaveConfig *wavec = &wave_config_vec[current_set_channel];
+    // 更新类属性
+    wavec->symbol_rate = text.leftRef(text.length() - 3).toInt();
+    // 更新界面
+    ui->tableWidget->item(current_set_channel, 5)->setText(QString::number(wavec->symbol_rate));
+
+}
+
+void udp_modem_widget::slot_spinBox_waveparam1_editingFinished() {
+
+    WaveConfig *wavec = &wave_config_vec[current_set_channel];
+    wavec->wave_param1 = ui->spinBox_waveparam1->value();
+    ui->tableWidget->item(current_set_channel, 6)->setText(QString::number(wavec->wave_param1));
+
+    ui->spinBox_waveparam1->blockSignals(true);
+    ui->spinBox_waveparam1->clearFocus();
+    ui->spinBox_waveparam1->blockSignals(false);
+}
+
+void udp_modem_widget::slot_spinBox_init_delay_editingFinished() {
+
+    WaveConfig *wavec = &wave_config_vec[current_set_channel];
+    wavec->init_delay = ui->spinBox_init_delay->value();
+
+    ui->spinBox_init_delay->blockSignals(true);
+    ui->spinBox_init_delay->clearFocus();
+    ui->spinBox_init_delay->blockSignals(false);
+}
+
+void udp_modem_widget::slot_spinBox_waveinternal_editingFinished() {
+
+    WaveConfig *wavec = &wave_config_vec[current_set_channel];
+
+    wavec->wave_internal = ui->spinBox_waveinternal->value();
+
+    ui->spinBox_waveinternal->blockSignals(true);
+    ui->spinBox_waveinternal->clearFocus();
+    ui->spinBox_waveinternal->blockSignals(false);
+
+}
+
+void udp_modem_widget::slot_doubleSpinBox_noise_power_editingFinished() {
+
+    noiseConfig.noise_power_allband = ui->doubleSpinBox_noise_power->value();
+
+    ui->doubleSpinBox_noise_power->blockSignals(true);
+    ui->doubleSpinBox_noise_power->clearFocus();
+    ui->doubleSpinBox_noise_power->blockSignals(false);
+
+}
+
+void udp_modem_widget::slot_comboBox_word_len_currentIndexChanged(const QString &text) {
+
+    if (text == "int16") {
+        formatConfig.data_word_length = 16;
+    } else {
+        formatConfig.data_word_length = 32;
+    }
+
+}
+
+void udp_modem_widget::slot_comboBox_data_iq_currentIndexChanged(const QString &text) {
+
+    if (text == "Real") {
+        formatConfig.data_type = "Real";
+    } else {
+        formatConfig.data_type = "I&Q";
+    }
 
 }
 

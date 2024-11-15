@@ -66,6 +66,18 @@ public slots:
     void slot_tableWidget_cell_clicked(int row, int col);
     void slot_doubleSpinBox_avg_power_editingFinished();
     void slot_doubleSpinBox_carrier_freq_editingFinished();
+    void slot_lineEdit_local_port_editingFinished();
+    void slot_lineEdit_dest_ip_editingFinished();
+    void slot_lineEdit_dest_port_editingFinished();
+    void slot_comboBox_sample_rate_currentIndexChanged(const QString &text);
+    void slot_comboBox_wave_type_currentIndexChanged(const QString &text);
+    void slot_comboBox_symbol_rate_currentIndexChanged(const QString &text);
+    void slot_spinBox_waveparam1_editingFinished();
+    void slot_spinBox_init_delay_editingFinished();
+    void slot_spinBox_waveinternal_editingFinished();
+    void slot_doubleSpinBox_noise_power_editingFinished();
+    void slot_comboBox_word_len_currentIndexChanged(const QString &text);
+    void slot_comboBox_data_iq_currentIndexChanged(const QString &text);
 
 private:
     Ui::udp_modem_widget *ui;
