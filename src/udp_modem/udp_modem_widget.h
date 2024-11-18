@@ -11,6 +11,8 @@
 #include <QList>
 #include <QHostAddress>
 #include <QMessageBox>
+#include <QThread>
+#include "udp_modem_worker.h"
 
 struct UdpConfig {
     QString local_ip;
@@ -92,6 +94,9 @@ private:
     FormatConfig formatConfig;
     NoiseConfig noiseConfig;
 
+    // multi-thread&signal generate
+    QThread *worker_thread;
+    udp_modem_worker *sig_worker;
 
     // 根据类属性更新控件
     void updateTableWidgetBackground();

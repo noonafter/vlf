@@ -149,6 +149,15 @@ int udp_modem_widget::init() {
         ui->comboBox_data_iq->setCurrentIndex(1);
     }
 
+    // 开启多线程
+    worker_thread = new QThread();
+    sig_worker = new udp_modem_worker();
+    sig_worker->moveToThread(worker_thread);
+    // 线程事件循环停止后，自动销毁相关对象
+    connect(worker_thread, &QThread::finished, sig_worker, &QObject::deleteLater);
+    connect(worker_thread, &QThread::finished, worker_thread, &QObject::deleteLater);
+    worker_thread->start();
+
 
     return 0;
 }

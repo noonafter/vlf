@@ -3,11 +3,13 @@ set (APP_SRC
         main.cpp
         udp_modem_widget.cpp
         freqspinbox.cpp
+        udp_modem_worker.cpp
         )
 
 set(APP_HDRS
         udp_modem_widget.h
         freqspinbox.h
+        udp_modem_worker.h
         )
 
 set(APP_UIS
