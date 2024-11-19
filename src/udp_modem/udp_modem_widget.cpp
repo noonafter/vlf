@@ -87,6 +87,13 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
 }
 
 udp_modem_widget::~udp_modem_widget() {
+    if(worker_thread)
+    {
+        // 将worker_thread的事件循环退出标志（quitNow）设为true
+        worker_thread->exit();
+        // 阻塞当前线程，等待finish()函数执行完毕，发出finished信号，处理延迟删除事件，清理线程资源
+        worker_thread->wait();
+    }
     saveConfig();
     delete ui;
 
