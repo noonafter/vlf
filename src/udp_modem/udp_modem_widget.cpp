@@ -80,6 +80,19 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
             &udp_modem_widget::slot_comboBox_word_len_currentIndexChanged);
     connect(ui->comboBox_data_iq, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
             &udp_modem_widget::slot_comboBox_data_iq_currentIndexChanged);
+//    connect(ui->pushButton_start, &QPushButton::clicked, this, &udp_modem_widget::slot_pushButton_start_clicked);
+
+    // control zone
+    // 多线程相关对象
+    worker_thread = new QThread();
+    sig_worker = new udp_modem_worker();
+    sig_worker->moveToThread(worker_thread);
+    // 线程事件循环停止后，自动销毁相关对象
+    connect(worker_thread, &QThread::finished, sig_worker, &QObject::deleteLater);
+    connect(worker_thread, &QThread::finished, worker_thread, &QObject::deleteLater);
+//    connect(this,  &udp_modem_widget::prepare_configs, sig_worker, &udp_modem_worker::udp_tx_sig);
+    connect(ui->pushButton_start, &QPushButton::clicked,sig_worker, &udp_modem_worker::udp_tx_sig);
+
     // freq set lock
     connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq,
             &FreqSpinBox::set_freq_set_lock);
@@ -157,12 +170,7 @@ int udp_modem_widget::init() {
     }
 
     // 开启多线程
-    worker_thread = new QThread();
-    sig_worker = new udp_modem_worker();
-    sig_worker->moveToThread(worker_thread);
-    // 线程事件循环停止后，自动销毁相关对象
-    connect(worker_thread, &QThread::finished, sig_worker, &QObject::deleteLater);
-    connect(worker_thread, &QThread::finished, worker_thread, &QObject::deleteLater);
+    sig_worker->setMWidget(this);
     worker_thread->start();
 
 
@@ -617,6 +625,12 @@ void udp_modem_widget::slot_comboBox_data_iq_currentIndexChanged(const QString &
     }
 
 }
+
+void udp_modem_widget::slot_pushButton_start_clicked() {
+
+    emit prepare_configs(udpConfig, channelConfig, wave_config_vec, formatConfig, noiseConfig);
+}
+
 
 
 

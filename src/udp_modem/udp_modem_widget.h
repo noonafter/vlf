@@ -13,6 +13,9 @@
 #include <QMessageBox>
 #include <QThread>
 #include "udp_modem_worker.h"
+#include <udp_config.h>
+
+//class udp_modem_worker;
 
 struct UdpConfig {
     QString local_ip;
@@ -60,6 +63,11 @@ public:
     int init();
     QString getLocalIPAddress();
 
+    friend class udp_modem_worker;
+
+signals:
+    void prepare_configs(UdpConfig &udp, ChannelConfig &channel, QVector<WaveConfig> &wave, FormatConfig &format, NoiseConfig &noise);
+
 public slots:
     // 如果写为on_<obj_name>_<signal>, ui_头文件会进行自动连接一次，但有的可能识别不了，no matching signal
     // 最好改为slot_<obj_name>_<signal>，手动connect
@@ -80,6 +88,7 @@ public slots:
     void slot_doubleSpinBox_noise_power_editingFinished();
     void slot_comboBox_word_len_currentIndexChanged(const QString &text);
     void slot_comboBox_data_iq_currentIndexChanged(const QString &text);
+    void slot_pushButton_start_clicked();
 
 private:
     Ui::udp_modem_widget *ui;

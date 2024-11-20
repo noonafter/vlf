@@ -133,7 +133,7 @@
               </property>
               <layout class="QGridLayout" name="gridLayout_6">
                <item row="0" column="0">
-                <widget class="QPushButton" name="pushButton">
+                <widget class="QPushButton" name="pushButton_start">
                  <property name="text">
                   <string>开始</string>
                  </property>
@@ -313,7 +313,11 @@
               </property>
               <layout class="QGridLayout" name="gridLayout_4">
                <item row="8" column="1" colspan="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_noise_power"/>
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_noise_power">
+                 <property name="minimum">
+                  <double>-180.000000000000000</double>
+                 </property>
+                </widget>
                </item>
                <item row="8" column="0">
                 <widget class="QLabel" name="label_noise_power">
@@ -408,7 +412,14 @@
                 </widget>
                </item>
                <item row="0" column="1" colspan="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_avg_power"/>
+                <widget class="QDoubleSpinBox" name="doubleSpinBox_avg_power">
+                 <property name="minimum">
+                  <double>-180.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>99.989999999999995</double>
+                 </property>
+                </widget>
                </item>
                <item row="4" column="0">
                 <widget class="QLabel" name="label_11">
