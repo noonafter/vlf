@@ -4,13 +4,16 @@ set (APP_SRC
         udp_modem_widget.cpp
         freqspinbox.cpp
         udp_modem_worker.cpp
-        udp_wave_config.cpp )
+        udp_wave_config.cpp
+        fsk_vlf.c
+        )
 
 set(APP_HDRS
         udp_modem_widget.h
         freqspinbox.h
         udp_modem_worker.h
         udp_wave_config.h
+        fsk_vlf.h
         )
 
 set(APP_UIS
@@ -35,5 +38,6 @@ target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::PrintSupport
         ${QT_VERSION_BASE}::Network
 
+        liquid
 
         )
