@@ -7,46 +7,14 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDebug>
-#include <QNetworkInterface>
+
 #include <QList>
 #include <QHostAddress>
 #include <QMessageBox>
 #include <QThread>
 #include "udp_modem_worker.h"
-#include <udp_config.h>
+#include "udp_wave_config.h"
 
-//class udp_modem_worker;
-
-struct UdpConfig {
-    QString local_ip;
-    int local_port;
-    QString dest_ip;
-    int dest_port;
-};
-
-struct ChannelConfig {
-    QVector<int> channels;
-};
-
-struct WaveConfig {
-    double avg_power;
-    int carrier_freq;
-    int sample_rate;
-    QString wave_type;
-    int symbol_rate;
-    int wave_param1;
-    int wave_internal;
-    int init_delay;
-};
-
-struct FormatConfig {
-    int data_word_length;
-    QString data_type;
-};
-
-struct NoiseConfig {
-    double noise_power_allband;
-};
 
 namespace Ui {
 class udp_modem_widget;
@@ -61,12 +29,6 @@ public:
     ~udp_modem_widget();
 
     int init();
-    QString getLocalIPAddress();
-
-    friend class udp_modem_worker;
-
-signals:
-    void prepare_configs(UdpConfig &udp, ChannelConfig &channel, QVector<WaveConfig> &wave, FormatConfig &format, NoiseConfig &noise);
 
 public slots:
     // 如果写为on_<obj_name>_<signal>, ui_头文件会进行自动连接一次，但有的可能识别不了，no matching signal
@@ -88,7 +50,6 @@ public slots:
     void slot_doubleSpinBox_noise_power_editingFinished();
     void slot_comboBox_word_len_currentIndexChanged(const QString &text);
     void slot_comboBox_data_iq_currentIndexChanged(const QString &text);
-    void slot_pushButton_start_clicked();
 
 private:
     Ui::udp_modem_widget *ui;
@@ -96,36 +57,16 @@ private:
     int num_vheader;
     int current_set_channel;
 
-    QString configPath;
-    UdpConfig udpConfig;
-    ChannelConfig channelConfig;
-    QVector<WaveConfig> wave_config_vec;
-    FormatConfig formatConfig;
-    NoiseConfig noiseConfig;
-
     // multi-thread&signal generate
     QThread *worker_thread;
     udp_modem_worker *sig_worker;
+    udp_wave_config *m_config;
 
     // 根据类属性更新控件
     void updateTableWidgetBackground();
     void updateTableWidgetRowItems(int row);
 
-    bool loadConfig();
-    bool saveConfig();
-    // 对属性赋一个默认初值
-    void createDefaultConfig();
-    // read 属性 from Json obj/array, write 属性 to Json obj/array
-    void readUdpConfig(const QJsonObject& obj);
-    QJsonObject writeUdpConfig() const;
-    void readChannelConfig(const QJsonObject& obj);
-    QJsonObject writeChannelConfig() const;
-    void readWaveConfig(const QJsonArray& array);
-    QJsonArray writeWaveConfig() const;
-    void readFormatConfig(const QJsonObject& obj);
-    QJsonObject writeFormatConfig() const;
-    void readNoiseConfig(const QJsonObject &obj);
-    QJsonObject writeNoiseConfig() const;
+
 };
 
 #endif // UDP_MODEM_WIDGET_H

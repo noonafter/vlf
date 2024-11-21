@@ -6,7 +6,7 @@
 #define VLF_UDP_MODEM_WORKER_H
 
 #include <QObject>
-//#include <udp_modem_widget.h>
+#include "udp_wave_config.h"
 
 class udp_modem_widget;
 
@@ -18,18 +18,17 @@ public:
 
 //这里有点问题，如果参数为udp_modem_widget*，那调用时，具体匹配的是哪个构造器呢？
 //    udp_modem_worker(udp_modem_widget *widget);
-public:
-    void setMWidget(udp_modem_widget *mWidget);
 
     ~udp_modem_worker() override;
 
+    void setMConfig(udp_wave_config *mConfig);
+
 public slots:
-    void udp_tx_sig();
+    void udp_sig_tx();
+    void udp_sig_stop();
 
 private:
-    udp_modem_widget *m_widget;
-
-
+    udp_wave_config *m_config;
 };
 
 
