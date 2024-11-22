@@ -67,18 +67,18 @@ void udp_modem_worker::udp_sig_tx() {
     bfsk_vlf_s *sig_gene_ch1 = NULL;
 
     if(m_config->channelConfig.channels[0] && wave1.wave_type == "FSK"){
-        sig_gene_ch1 = bfsk_vlf_create(fc_ch1, fsep_ch1, sps_ch1, fsa_ch1);
+        sig_gene_ch1 = bfsk_vlf_create(fc_ch1, fsep_ch1, sps_ch1, fsa_ch1, FRAME_SIZE);
+        bfsk_vlf_frame_in(sig_gene_ch1, NULL, FRAME_SIZE);
     }
 
 
     int idx_package = 0;
-    while (!m_config->quitNow && idx_package < 100) {
+    while (!m_config->quitNow && idx_package < 10000) {
         qDebug() << "in loop";
 
         // ch1
         if (m_config->channelConfig.channels[0] && wave1.wave_type == "FSK") {
-            // 产生FSK信号，放到一个int32/16数组里面
-            // tx_sample_ch1 = 0噪声 1信号 2间隔
+            // tx_sample_ch1用来监控信号进入哪一阶段
             int i = 0;
             // 进入初始延迟，信号为0
             for (; !is_sig_ch1 && i < UDP_PACKAGE_SIZE; i++) {
@@ -91,14 +91,14 @@ void udp_modem_worker::udp_sig_tx() {
             }
             // 进入信号/间隔
             for (; is_sig_ch1 && i < UDP_PACKAGE_SIZE; i++) {
-                if (tx_sample_ch1 < siglen_ch1) {
-                    bfsk_vlf_modulate_block(sig_gene_ch1, sig_ch1+i, 1); // 信号
+                if (tx_sample_ch1 < siglen_ch1 && bfsk_vlf_modulate_block(sig_gene_ch1, sig_ch1+i, 1)) { // 信号
+                    bfsk_vlf_frame_in(sig_gene_ch1, NULL, FRAME_SIZE);
                 } else {
                     sig_ch1[i] = 0; // 间隔
                 }
                 tx_sample_ch1 = (tx_sample_ch1 + 1) % period_ch1;
             }
-        } else if (m_config->wave_config_vec[0].wave_type == "MSK") {
+        } else if (m_config->channelConfig.channels[0] && wave1.wave_type == "MSK") {
 
         }
 
@@ -107,9 +107,8 @@ void udp_modem_worker::udp_sig_tx() {
 
         // noise
         for (int i = 0; i < UDP_PACKAGE_SIZE; i++) {
-            sig_sum[i] = sig_ch1[i]; // randnf() + + sig_ch1[i] + sig_ch2[i] + ...
+            sig_sum[i] = randnf() + sig_ch1[i]; // randnf() + sig_ch1[i] + sig_ch2[i] + ...
             out << sig_sum[i];
-//            out << cosf(2*3.141592654*1*i/16);
 
         }
 
@@ -124,13 +123,6 @@ void udp_modem_worker::udp_sig_tx() {
 
         idx_package++;
     } // while end
-
-
-
-//    float avg_power_ch1 = m_config->wave_config_vec[0].avg_power;
-//    int carrier_freq_ch1 = m_config->wave_config_vec[0].carrier_freq;
-
-
 
 
 
