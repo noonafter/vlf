@@ -122,9 +122,11 @@ int bfsk_vlf_modulate_block_cplx(bfsk_vlf_s *_q, float complex* buf, int nsamp){
 
 int bfsk_vlf_destroy(bfsk_vlf_s *_q) {
 
-    free(_q->m_frame_bit);
-    nco_crcf_destroy(_q->m_nco);
-    free(_q);
+    if(_q){
+        free(_q->m_frame_bit);
+        nco_crcf_destroy(_q->m_nco);
+        free(_q);
+    }
 
     return 1;
 }
