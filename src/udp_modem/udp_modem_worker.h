@@ -29,6 +29,8 @@ public slots:
 
 private:
     udp_wave_config *m_config;
+    int tx_sample_ch1;
+    bool is_sig_ch1;
 };
 
 
