@@ -8,6 +8,7 @@
 #include <QObject>
 #include "udp_wave_config.h"
 #include "fsk_vlf.h"
+#include "msk_vlf.h"
 
 class udp_modem_widget;
 
@@ -30,12 +31,19 @@ public slots:
 
 private:
     udp_wave_config *m_config;
-    int tx_sample_ch1;
-    bool is_sig_ch1;
+
+    bool is_sig_ch0;
+    int tx_sample_ch0;
+    bfsk_vlf_s *fsk_generator_ch0;
+    msk_vlf_s *msk_generator_ch0;
 
     int chx_generate_one_package_bfsk(bfsk_vlf_s * sig_gene_ch1,
                                        bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
                                        int &siglen_chx,  int &period_chx,  float *sig_chx);
+
+    int chx_generate_one_package_msk(msk_vlf_s * sig_gene_ch1,
+                                      bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
+                                      int &siglen_chx,  int &period_chx,  float *sig_chx);
 };
 
 

@@ -13,14 +13,18 @@
 #include "liquid.h"
 
 
+
 #define UDP_PACKAGE_SIZE 256 // in sample
 #define FRAME_SIZE (256+38+35)
 
 udp_modem_worker::udp_modem_worker(QObject *parent) :
         QObject(parent){
 
-    tx_sample_ch1 = 0;
-    is_sig_ch1 = false;
+    is_sig_ch0 = false;
+    tx_sample_ch0 = 0;
+
+    fsk_generator_ch0 = NULL;
+    msk_generator_ch0 = NULL;
 
 }
 
@@ -52,35 +56,38 @@ void udp_modem_worker::udp_sig_tx() {
     double noise_power = m_config->noiseConfig.noise_power_allband;
     float std_noise = powf(10, (float)noise_power/20);
 
+    float sig_ch0[UDP_PACKAGE_SIZE] = {0.0f};
     float sig_ch1[UDP_PACKAGE_SIZE] = {0.0f};
     float sig_ch2[UDP_PACKAGE_SIZE] = {0.0f};
     float sig_ch3[UDP_PACKAGE_SIZE] = {0.0f};
     float sig_ch4[UDP_PACKAGE_SIZE] = {0.0f};
     float sig_ch5[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch6[UDP_PACKAGE_SIZE] = {0.0f};
 
     float sig_sum[UDP_PACKAGE_SIZE] = {0.0f};
     int32_t sig_tx[UDP_PACKAGE_SIZE] = {0};
 
 
     // ch1 产生信号产生器
-    WaveConfig wave1 = m_config->wave_config_vec[0];
-    int fc_ch1 = wave1.carrier_freq;
-    int fsep_ch1 = wave1.wave_param1;
-    int fsa_ch1 = wave1.sample_rate;
-    int fsy_ch1 = wave1.symbol_rate;
-    int sps_ch1 = fsa_ch1 / fsy_ch1;
-    bfsk_vlf_s *fsk_generator_ch1 = NULL;
-    // ch1 一包信号产生
-    int init_delay_ch1 = wave1.init_delay * fsa_ch1 / 1000; // in sample
-    int siglen_ch1 = FRAME_SIZE * sps_ch1;
-    int internal_ch1 = wave1.wave_internal * fsa_ch1 / 1000;
-    int period_ch1 = siglen_ch1 + internal_ch1;
-    float std_ch1 = powf(10, (float)wave1.avg_power/20);
+    QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
+    int fc_ch0 = wave_vec[0].carrier_freq;
+    int fsep_ch0 = wave_vec[0].wave_param1;
+    int fsa_ch0 = wave_vec[0].sample_rate;
+    int fsy_ch0 = wave_vec[0].symbol_rate;
+    int sps_ch0 = fsa_ch0 / fsy_ch0;
 
-    if(m_config->channelConfig.channels[0] && wave1.wave_type == "FSK"){
-        fsk_generator_ch1 = bfsk_vlf_create(fc_ch1, fsep_ch1, sps_ch1, fsa_ch1, FRAME_SIZE);
-        bfsk_vlf_frame_in(fsk_generator_ch1, NULL, FRAME_SIZE);
+    // ch1 一包信号产生
+    int init_delay_ch0 = wave_vec[0].init_delay * fsa_ch0 / 1000; // in sample
+    int siglen_ch0 = FRAME_SIZE * sps_ch0;
+    int internal_ch0 = wave_vec[0].wave_internal * fsa_ch0 / 1000;
+    int period_ch0 = siglen_ch0 + internal_ch0;
+    float std_ch0 = powf(10, (float)wave_vec[0].avg_power / 20);
+
+    if(m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "FSK"){
+        fsk_generator_ch0 = bfsk_vlf_create(fc_ch0, fsep_ch0, sps_ch0, fsa_ch0, FRAME_SIZE);
+        bfsk_vlf_frame_in(fsk_generator_ch0, NULL, FRAME_SIZE);
+    } else if(m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "MSK"){
+        msk_generator_ch0 = msk_vlf_create(fc_ch0, sps_ch0, fsep_ch0, fsa_ch0, FRAME_SIZE);
+        msk_vlf_frame_in(msk_generator_ch0, NULL , FRAME_SIZE);
     }
 
 
@@ -91,15 +98,16 @@ void udp_modem_worker::udp_sig_tx() {
         qDebug() << "in loop";
 
         // ch1
-        if (m_config->channelConfig.channels[0] && wave1.wave_type == "FSK") {
-            // 生成一包fsk信号（256点）
-            chx_generate_one_package_bfsk(fsk_generator_ch1, is_sig_ch1, tx_sample_ch1, init_delay_ch1,
-                                          siglen_ch1, period_ch1, sig_ch1);
-
-        } else if (m_config->channelConfig.channels[0] && wave1.wave_type == "MSK") {
-
+        if (m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "FSK") {
+            // 生成一包FSK信号（256点）
+            chx_generate_one_package_bfsk(fsk_generator_ch0, is_sig_ch0, tx_sample_ch0, init_delay_ch0,
+                                          siglen_ch0, period_ch0, sig_ch0);
+        } else if (m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "MSK") {
+            // 生成一包MSK信号（256点）
+            chx_generate_one_package_msk(msk_generator_ch0, is_sig_ch0, tx_sample_ch0, init_delay_ch0,
+                                         siglen_ch0, period_ch0, sig_ch0);
         } else {
-
+            memset(sig_ch0, 0, sizeof(sig_ch0));
         }
 
         // ch2
@@ -107,7 +115,7 @@ void udp_modem_worker::udp_sig_tx() {
 
         // noise
         for (int i = 0; i < UDP_PACKAGE_SIZE; i++) {
-            sig_sum[i] = std_noise * randnf() + std_ch1 * sig_ch1[i]; // randnf() + sig_ch1[i] + sig_ch2[i] + ...
+            sig_sum[i] = std_noise * randnf() + std_ch0 * sig_ch0[i]; // randnf() + sig_ch0[i] + sig_ch2[i] + ...
             out << sig_sum[i];
 
         }
@@ -128,7 +136,7 @@ void udp_modem_worker::udp_sig_tx() {
 
 
 
-    bfsk_vlf_destroy(fsk_generator_ch1);
+    bfsk_vlf_destroy(fsk_generator_ch0);
 
 
     file.close();
@@ -145,8 +153,11 @@ void udp_modem_worker::udp_sig_stop() {
 int udp_modem_worker::chx_generate_one_package_bfsk(bfsk_vlf_s *sig_gene_ch1,
                                                     bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
                                                     int &siglen_chx,  int &period_chx,  float *sig_chx) {
+    if(!sig_gene_ch1)
+        return 0;
 
-    // tx_sample_ch1用来监控信号进入哪一阶段
+    // is_sig_chx用来监控是否是初始延迟
+    // tx_sample_ch1用来监控是信号还是间隔
     int i = 0;
     // 进入初始延迟，信号为0
     for (; !is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
@@ -175,6 +186,46 @@ int udp_modem_worker::chx_generate_one_package_bfsk(bfsk_vlf_s *sig_gene_ch1,
 
 
     return 0;
+}
+
+int udp_modem_worker::chx_generate_one_package_msk(msk_vlf_s *sig_gene_ch1,
+                                                   bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
+                                                   int &siglen_chx, int &period_chx, float *sig_chx) {
+    if(!sig_gene_ch1)
+        return 0;
+
+    // is_sig_chx用来监控是否是初始延迟
+    // tx_sample_ch1用来监控是信号还是间隔
+    int i = 0;
+    // 进入初始延迟，信号为0
+    for (; !is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+        sig_chx[i] = 0;
+        // 下一个点是信号，状态重置
+        if (++tx_sample_chx >= init_delay_chx) {
+            is_sig_chx = true;
+            tx_sample_chx = 0;
+        }
+    }
+    // 进入信号/间隔
+    for (; is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+        // 信号
+        if (tx_sample_chx < siglen_chx) {
+            // 这里if不能合并，否则大部分情况都会进入间隔，将信号覆盖了
+            if( msk_vlf_modulate_block(sig_gene_ch1, sig_chx + i, 1))
+                msk_vlf_frame_in(sig_gene_ch1, NULL, FRAME_SIZE);
+            // 实数cos信号，能量为0.5
+            sig_chx[i] *= sqrtf(2.0f);
+            // 间隔
+        } else {
+            sig_chx[i] = 0;
+        }
+        tx_sample_chx = (tx_sample_chx + 1) % period_chx;
+    }
+
+
+    return 0;
+
+
 }
 
 

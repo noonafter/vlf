@@ -6,6 +6,7 @@ set (APP_SRC
         udp_modem_worker.cpp
         udp_wave_config.cpp
         fsk_vlf.c
+        msk_vlf.c
         )
 
 set(APP_HDRS
@@ -14,6 +15,7 @@ set(APP_HDRS
         udp_modem_worker.h
         udp_wave_config.h
         fsk_vlf.h
+        msk_vlf.h
         )
 
 set(APP_UIS
