@@ -16,7 +16,7 @@ bfsk_vlf_s *bfsk_vlf_create(int freq_carrier, int freq_sep, int sps, int sample_
     _q->m_fsa = sample_rate;
     _q->m_nco = nco_crcf_create(LIQUID_VCO);
     // 只开始设置一次
-    nco_crcf_set_phase(_q->m_nco, 0.0f);
+//    nco_crcf_set_phase(_q->m_nco, 0.0f);
 
     _q->m_frame_bit = (int *) malloc(frame_size * sizeof(int));
     _q->m_frame_size = frame_size;
