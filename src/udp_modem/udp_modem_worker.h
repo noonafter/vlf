@@ -10,6 +10,9 @@
 #include "fsk_vlf.h"
 #include "msk_vlf.h"
 
+#define UDP_PACKAGE_SIZE 256 // in sample
+#define FRAME_SIZE (256+38+35)
+
 class udp_modem_widget;
 
 class udp_modem_worker : public QObject {
@@ -32,10 +35,11 @@ public slots:
 private:
     udp_wave_config *m_config;
 
-    bool is_sig_ch0;
-    int tx_sample_ch0;
-    bfsk_vlf_s *fsk_generator_ch0;
-    msk_vlf_s *msk_generator_ch0;
+    int ch_size;
+    bool *is_sig_ch;
+    int *tx_sample_ch;
+    float (*sig_ch)[UDP_PACKAGE_SIZE];
+    float *sig_sum;
 
     int chx_generate_one_package_bfsk(bfsk_vlf_s * sig_gene_ch1,
                                        bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,

@@ -128,6 +128,6 @@ int bfsk_vlf_destroy(bfsk_vlf_s *_q) {
         free(_q);
     }
 
-    return 1;
+    return 0;
 }
 

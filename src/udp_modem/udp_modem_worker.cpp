@@ -14,21 +14,29 @@
 
 
 
-#define UDP_PACKAGE_SIZE 256 // in sample
-#define FRAME_SIZE (256+38+35)
+
 
 udp_modem_worker::udp_modem_worker(QObject *parent) :
         QObject(parent){
 
-    is_sig_ch0 = false;
-    tx_sample_ch0 = 0;
+    ch_size = 0;
+    is_sig_ch = NULL;
+    tx_sample_ch = NULL;
+    sig_ch = NULL;
+    sig_sum = NULL;
 
-    fsk_generator_ch0 = NULL;
-    msk_generator_ch0 = NULL;
+
+
 
 }
 
 udp_modem_worker::~udp_modem_worker() {
+
+
+    delete[] sig_ch;
+    delete[] sig_sum;
+    delete[] is_sig_ch;
+    delete[] tx_sample_ch;
 
 }
 
@@ -44,7 +52,7 @@ void udp_modem_worker::udp_sig_tx() {
     out.setFloatingPointPrecision(QDataStream::SinglePrecision);
     out.setByteOrder(QDataStream::LittleEndian);
 
-// 在次线程中不要写主线程中的值，会有问题
+// 在次线程中不要写自己的控制开关，会有问题，控制开关应该由用户在主线程中控制
 // 按下start按钮同时，还没执行到这行，这时按下stop，再执行下面这行，会覆盖掉quitNow，进入while
 // 而这时只有start按钮能用，再次点击，会触发另一个udp_sig_tx的事件加入事件队列，但由于线程卡在前面的while，这个事件不会被处理
 // 这时候按stop按钮，会退出第一个while，开始处理第二个udp_sig_tx的事件，将quitNow = false，又进入while
@@ -56,39 +64,53 @@ void udp_modem_worker::udp_sig_tx() {
     double noise_power = m_config->noiseConfig.noise_power_allband;
     float std_noise = powf(10, (float)noise_power/20);
 
-    float sig_ch0[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch1[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch2[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch3[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch4[UDP_PACKAGE_SIZE] = {0.0f};
-    float sig_ch5[UDP_PACKAGE_SIZE] = {0.0f};
 
-    float sig_sum[UDP_PACKAGE_SIZE] = {0.0f};
     int32_t sig_tx[UDP_PACKAGE_SIZE] = {0};
 
 
-    // ch1 产生信号产生器
     QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
-    int fc_ch0 = wave_vec[0].carrier_freq;
-    int fsep_ch0 = wave_vec[0].wave_param1;
-    int fsa_ch0 = wave_vec[0].sample_rate;
-    int fsy_ch0 = wave_vec[0].symbol_rate;
-    int sps_ch0 = fsa_ch0 / fsy_ch0;
+    QVector<int> &channel_vec = m_config->channelConfig.channels;
 
-    // ch1 一包信号产生
-    int init_delay_ch0 = wave_vec[0].init_delay * fsa_ch0 / 1000; // in sample
-    int siglen_ch0 = FRAME_SIZE * sps_ch0;
-    int internal_ch0 = wave_vec[0].wave_internal * fsa_ch0 / 1000;
-    int period_ch0 = siglen_ch0 + internal_ch0;
-    float std_ch0 = powf(10, (float)wave_vec[0].avg_power / 20);
+    int fc_ch[ch_size];
+    int fsep_ch[ch_size];
+    int fsa_ch[ch_size];
+    int fsy_ch[ch_size];
+    int sps_ch[ch_size];
+    int init_delay_ch[ch_size];
+    int siglen_ch[ch_size];
+    int internal_ch[ch_size];
+    int period_ch[ch_size];
+    float std_ch[ch_size];
+    bfsk_vlf_s *fsk_generator_ch[ch_size];
+    msk_vlf_s *msk_generator_ch[ch_size];
 
-    if(m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "FSK"){
-        fsk_generator_ch0 = bfsk_vlf_create(fc_ch0, fsep_ch0, sps_ch0, fsa_ch0, FRAME_SIZE);
-        bfsk_vlf_frame_in(fsk_generator_ch0, NULL, FRAME_SIZE);
-    } else if(m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "MSK"){
-        msk_generator_ch0 = msk_vlf_create(fc_ch0, sps_ch0, fsep_ch0, fsa_ch0, FRAME_SIZE);
-        msk_vlf_frame_in(msk_generator_ch0, NULL , FRAME_SIZE);
+    for (int i = 0; i < ch_size; ++i) {
+        // chx 信号产生器初始化所需参数
+        fc_ch[i] = wave_vec[i].carrier_freq;
+        fsep_ch[i] = wave_vec[i].wave_param1;
+        fsa_ch[i] = wave_vec[i].sample_rate;
+        fsy_ch[i] = wave_vec[i].symbol_rate;
+        sps_ch[i] = fsa_ch[i] / fsy_ch[i];
+        // chx 产生一包信号所需参数
+        init_delay_ch[i] = wave_vec[i].init_delay * fsa_ch[i] / 1000;
+        siglen_ch[i] = FRAME_SIZE * sps_ch[i];
+        internal_ch[i] = wave_vec[i].wave_internal * fsa_ch[i] / 1000;
+        period_ch[i] = siglen_ch[i] + internal_ch[i];
+        std_ch[i] = powf(10, (float) wave_vec[i].avg_power / 20);
+        // 初始化chx信号产生器
+        fsk_generator_ch[i] = NULL;
+        msk_generator_ch[i] = NULL;
+        if (channel_vec[i] && wave_vec[i].wave_type == "FSK") {
+            fsk_generator_ch[i] = bfsk_vlf_create(fc_ch[i], fsep_ch[i], sps_ch[i], fsa_ch[i], FRAME_SIZE);
+            bfsk_vlf_frame_in(fsk_generator_ch[i], NULL, FRAME_SIZE);
+        } else if (channel_vec[i] && wave_vec[i].wave_type == "MSK") {
+            msk_generator_ch[i] = msk_vlf_create(fc_ch[i], sps_ch[i], fsep_ch[i], fsa_ch[i], FRAME_SIZE);
+            msk_vlf_frame_in(msk_generator_ch[i], NULL, FRAME_SIZE);
+        }
     }
+
+
+
 
 
 
@@ -97,27 +119,28 @@ void udp_modem_worker::udp_sig_tx() {
     while (!m_config->quitNow && idx_package < 10000) {
         qDebug() << "in loop";
 
-        // ch1
-        if (m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "FSK") {
-            // 生成一包FSK信号（256点）
-            chx_generate_one_package_bfsk(fsk_generator_ch0, is_sig_ch0, tx_sample_ch0, init_delay_ch0,
-                                          siglen_ch0, period_ch0, sig_ch0);
-        } else if (m_config->channelConfig.channels[0] && wave_vec[0].wave_type == "MSK") {
-            // 生成一包MSK信号（256点）
-            chx_generate_one_package_msk(msk_generator_ch0, is_sig_ch0, tx_sample_ch0, init_delay_ch0,
-                                         siglen_ch0, period_ch0, sig_ch0);
-        } else {
-            memset(sig_ch0, 0, sizeof(sig_ch0));
+        // chx
+        for (int i = 0; i < ch_size; i++) {
+            if (channel_vec[i] && wave_vec[i].wave_type == "FSK") {
+                // 生成一包FSK信号（256点）
+                chx_generate_one_package_bfsk(fsk_generator_ch[i], is_sig_ch[i], tx_sample_ch[i], init_delay_ch[i],
+                                              siglen_ch[i], period_ch[i], sig_ch[i]);
+            } else if (channel_vec[i] && wave_vec[i].wave_type == "MSK") {
+                // 生成一包MSK信号（256点）
+                chx_generate_one_package_msk(msk_generator_ch[i], is_sig_ch[i], tx_sample_ch[i], init_delay_ch[i],
+                                             siglen_ch[i], period_ch[i], sig_ch[i]);
+            } else {
+                memset(sig_ch[i], 0, sizeof(sig_ch[i]));
+            }
         }
 
-        // ch2
-
-
         // noise
-        for (int i = 0; i < UDP_PACKAGE_SIZE; i++) {
-            sig_sum[i] = std_noise * randnf() + std_ch0 * sig_ch0[i]; // randnf() + sig_ch0[i] + sig_ch2[i] + ...
-            out << sig_sum[i];
-
+        for (int j = 0; j < UDP_PACKAGE_SIZE; j++) {
+            sig_sum[j] = 0;
+            for (int i = 0; i < ch_size; i++) {
+                sig_sum[j] += std_noise * randnf() + std_ch[i] * sig_ch[i][j]; // randnf() + sig_ch[i]][j] ...
+            }
+            out << sig_sum[j];
         }
 
 
@@ -135,8 +158,10 @@ void udp_modem_worker::udp_sig_tx() {
 
 
 
-
-    bfsk_vlf_destroy(fsk_generator_ch0);
+    for (int i = 0; i < ch_size; i++) {
+        bfsk_vlf_destroy(fsk_generator_ch[i]);
+        msk_vlf_destroy(msk_generator_ch[i]);
+    }
 
 
     file.close();
@@ -144,6 +169,19 @@ void udp_modem_worker::udp_sig_tx() {
 
 void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
     m_config = mConfig;
+
+    ch_size = m_config->wave_config_vec.size();
+
+    sig_ch = new float[ch_size][UDP_PACKAGE_SIZE];
+    sig_sum = new float[UDP_PACKAGE_SIZE];
+    is_sig_ch = new bool[ch_size];
+    tx_sample_ch = new int[ch_size];
+
+    memset(sig_ch, 0, ch_size * UDP_PACKAGE_SIZE * sizeof(float));
+    memset(sig_sum, 0, UDP_PACKAGE_SIZE*sizeof(float));
+    memset(is_sig_ch, 0, ch_size * sizeof(bool));
+    memset(tx_sample_ch, 0, ch_size * sizeof(int));
+
 }
 
 void udp_modem_worker::udp_sig_stop() {
