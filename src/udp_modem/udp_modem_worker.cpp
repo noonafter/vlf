@@ -17,13 +17,16 @@
 
 
 udp_modem_worker::udp_modem_worker(QObject *parent) :
-        QObject(parent){
+        QObject(parent),udps(this){
 
     ch_size = 0;
     is_sig_ch = NULL;
     tx_sample_ch = NULL;
     sig_ch = NULL;
     sig_sum = NULL;
+
+    agc = agc_rrrf_create();
+
 
 
 
@@ -33,10 +36,12 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
 udp_modem_worker::~udp_modem_worker() {
 
 
+    agc_rrrf_destroy(agc);
     delete[] sig_ch;
     delete[] sig_sum;
     delete[] is_sig_ch;
     delete[] tx_sample_ch;
+    delete[] sig_sum;
 
 }
 
@@ -63,9 +68,8 @@ void udp_modem_worker::udp_sig_tx() {
     // global
     double noise_power = m_config->noiseConfig.noise_power_allband;
     float std_noise = powf(10, (float)noise_power/20);
+    float tmp;
 
-
-    int32_t sig_tx[UDP_PACKAGE_SIZE] = {0};
 
 
     QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
@@ -83,6 +87,7 @@ void udp_modem_worker::udp_sig_tx() {
     float std_ch[ch_size];
     bfsk_vlf_s *fsk_generator_ch[ch_size];
     msk_vlf_s *msk_generator_ch[ch_size];
+    agc_rrrf_reset(agc);
 
     for (int i = 0; i < ch_size; ++i) {
         // chx 信号产生器初始化所需参数
@@ -110,10 +115,6 @@ void udp_modem_worker::udp_sig_tx() {
     }
 
 
-
-
-
-
     // 信号循环
     int idx_package = 0;
     while (!m_config->quitNow && idx_package < 10000) {
@@ -134,21 +135,26 @@ void udp_modem_worker::udp_sig_tx() {
             }
         }
 
-        // noise
         for (int j = 0; j < UDP_PACKAGE_SIZE; j++) {
             sig_sum[j] = 0;
+            // noise
             for (int i = 0; i < ch_size; i++) {
                 sig_sum[j] += std_noise * randnf() + std_ch[i] * sig_ch[i][j]; // randnf() + sig_ch[i]][j] ...
             }
-            out << sig_sum[j];
+
+            // AGC
+            agc_rrrf_execute(agc, sig_sum[j], &tmp);
+//            if(idx_package%200 == 0 && j == 0)
+//                agc_rrrf_print(agc);
+
+            // udp socket
+            out << tmp;
         }
 
 
-        // AGC
 
 
 
-        // udp socket
 
 
 
@@ -176,6 +182,7 @@ void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
     sig_sum = new float[UDP_PACKAGE_SIZE];
     is_sig_ch = new bool[ch_size];
     tx_sample_ch = new int[ch_size];
+    sig_tx = new int32_t[UDP_PACKAGE_SIZE];
 
     memset(sig_ch, 0, ch_size * UDP_PACKAGE_SIZE * sizeof(float));
     memset(sig_sum, 0, UDP_PACKAGE_SIZE*sizeof(float));

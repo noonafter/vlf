@@ -6,6 +6,7 @@
 #define VLF_UDP_MODEM_WORKER_H
 
 #include <QObject>
+#include <QUdpSocket>
 #include "udp_wave_config.h"
 #include "fsk_vlf.h"
 #include "msk_vlf.h"
@@ -40,6 +41,10 @@ private:
     int *tx_sample_ch;
     float (*sig_ch)[UDP_PACKAGE_SIZE];
     float *sig_sum;
+    int32_t *sig_tx;
+
+    agc_rrrf agc;
+    QUdpSocket udps;
 
     int chx_generate_one_package_bfsk(bfsk_vlf_s * sig_gene_ch1,
                                        bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,

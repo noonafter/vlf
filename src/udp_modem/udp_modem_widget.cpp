@@ -23,7 +23,7 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     ui->comboBox_data_iq->addItem("Real");
     ui->comboBox_data_iq->addItem("I&Q");
 
-    ui->doubleSpinBox_avg_power->setSuffix(" dBm");
+    ui->doubleSpinBox_avg_power->setSuffix(" dB");
     ui->comboBox_sample_rate->addItem(("48000 Hz"));
     ui->comboBox_sample_rate->addItem(("96000 Hz"));
     ui->comboBox_sample_rate->addItem(("192000 Hz"));
@@ -34,7 +34,7 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     ui->checkBox_freqset->setCheckState(Qt::Checked);
     ui->spinBox_waveinternal->setSuffix(" ms");
     ui->spinBox_init_delay->setSuffix(" ms");
-    ui->doubleSpinBox_noise_power->setSuffix(" dBm");
+    ui->doubleSpinBox_noise_power->setSuffix(" dB");
 
     // connect udp ip&port
     connect(ui->lineEdit_local_port, &QLineEdit::editingFinished, this,
