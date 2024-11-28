@@ -8,8 +8,8 @@
 #include <qdebug.h>
 #include <QThread>
 #include <cmath>
-#include <QFile>
-#include <QDataStream>
+
+
 #include "liquid.h"
 
 
@@ -17,7 +17,7 @@
 
 
 udp_modem_worker::udp_modem_worker(QObject *parent) :
-        QObject(parent),udps(this){
+        QObject(parent), udp_send(this), bytea(), dstream(&bytea, QIODevice::WriteOnly) {
 
     ch_size = 0;
     is_sig_ch = NULL;
@@ -27,8 +27,10 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
 
     agc = agc_rrrf_create();
 
-
-
+    file = new QFile(R"(E:\project\vlf\src\udp_modem\sig_sum_int_tx)");
+    out = new QDataStream(file);
+    out->setFloatingPointPrecision(QDataStream::SinglePrecision);
+    out->setByteOrder(QDataStream::LittleEndian);
 
 
 }
@@ -41,21 +43,16 @@ udp_modem_worker::~udp_modem_worker() {
     delete[] sig_sum;
     delete[] is_sig_ch;
     delete[] tx_sample_ch;
-    delete[] sig_sum;
+    delete[] sig_tx;
 
+    delete file;
+    delete out;
 }
 
 void udp_modem_worker::udp_sig_tx() {
 
     qDebug() << "udp_sig_tx";
-    QFile file(R"(E:\project\vlf\src\udp_modem\sig_sum)");
-    if(!file.open(QIODevice::WriteOnly | QIODevice::Append)){
-        qWarning() << "failed to open file" << file.errorString();
-        return;
-    }
-    QDataStream out(&file);
-    out.setFloatingPointPrecision(QDataStream::SinglePrecision);
-    out.setByteOrder(QDataStream::LittleEndian);
+
 
 // 在次线程中不要写自己的控制开关，会有问题，控制开关应该由用户在主线程中控制
 // 按下start按钮同时，还没执行到这行，这时按下stop，再执行下面这行，会覆盖掉quitNow，进入while
@@ -70,7 +67,15 @@ void udp_modem_worker::udp_sig_tx() {
     float std_noise = powf(10, (float)noise_power/20);
     float tmp;
 
-
+    QHostAddress dest_addr(m_config->udpConfig.dest_ip);
+    quint16 dest_port = m_config->udpConfig.dest_port;
+//    udp_send.bind(QHostAddress::AnyIPv4, m_config->udpConfig.local_port);
+    if(udp_send.bind(QHostAddress::AnyIPv4, m_config->udpConfig.local_port)){
+        qDebug() << "bind fail" << udp_send.errorString();
+//        return;
+    }else {
+        qDebug() << "bind success";
+    };
 
     QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
     QVector<int> &channel_vec = m_config->channelConfig.channels;
@@ -116,6 +121,10 @@ void udp_modem_worker::udp_sig_tx() {
 
 
     // 信号循环
+    if(!file->open(QIODevice::WriteOnly | QIODevice::Append)){
+        qWarning() << "failed to open file" << file->errorString();
+        return;
+    }
     int idx_package = 0;
     while (!m_config->quitNow && idx_package < 10000) {
         qDebug() << "in loop";
@@ -144,25 +153,28 @@ void udp_modem_worker::udp_sig_tx() {
 
             // AGC
             agc_rrrf_execute(agc, sig_sum[j], &tmp);
-//            if(idx_package%200 == 0 && j == 0)
-//                agc_rrrf_print(agc);
 
             // udp socket
-            out << tmp;
+            sig_tx[j] = (int32_t)(tmp * pow(2,29));
+            *out << sig_tx[j];
+            dstream << sig_tx[j];
         }
 
+//        qDebug() << "bytea len" << bytea.size();
+        udp_send.writeDatagram(bytea, dest_addr, dest_port);
+        udp_send.close();
+        bytea.clear();
+        dstream.device()->seek(0);
 
 
-
-
-
+//        QThread::msleep(1);
 
 
         idx_package++;
     } // while end
 
 
-
+    file->close();
 
     for (int i = 0; i < ch_size; i++) {
         bfsk_vlf_destroy(fsk_generator_ch[i]);
@@ -170,7 +182,6 @@ void udp_modem_worker::udp_sig_tx() {
     }
 
 
-    file.close();
 }
 
 void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
@@ -272,6 +283,7 @@ int udp_modem_worker::chx_generate_one_package_msk(msk_vlf_s *sig_gene_ch1,
 
 
 }
+
 
 
 

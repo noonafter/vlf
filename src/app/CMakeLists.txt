@@ -4,6 +4,8 @@ set (APP_SRC
     main.cpp
     mainwindow.cpp
 
+    recv_worker.cpp 
+    recv_worker.h
     )
 
 set(APP_HDRS
@@ -27,5 +29,6 @@ target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::Widgets
         ${QT_VERSION_BASE}::Sql
         ${QT_VERSION_BASE}::PrintSupport
+        ${QT_VERSION_BASE}::Network
 
         )

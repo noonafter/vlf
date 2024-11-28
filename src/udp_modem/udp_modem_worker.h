@@ -7,6 +7,8 @@
 
 #include <QObject>
 #include <QUdpSocket>
+#include <QDataStream>
+#include <QFile>
 #include "udp_wave_config.h"
 #include "fsk_vlf.h"
 #include "msk_vlf.h"
@@ -44,7 +46,13 @@ private:
     int32_t *sig_tx;
 
     agc_rrrf agc;
-    QUdpSocket udps;
+    QUdpSocket udp_send;
+    QByteArray bytea;
+    QDataStream dstream;
+
+    QFile *file;
+    QDataStream *out;
+
 
     int chx_generate_one_package_bfsk(bfsk_vlf_s * sig_gene_ch1,
                                        bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
