@@ -27,11 +27,12 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
 
     agc = agc_rrrf_create();
 
+#ifdef LOCAL_FILE_WRITE
     file = new QFile(R"(E:\project\vlf\src\udp_modem\sig_sum_int_tx)");
     out = new QDataStream(file);
     out->setFloatingPointPrecision(QDataStream::SinglePrecision);
     out->setByteOrder(QDataStream::LittleEndian);
-
+#endif
 
 }
 
@@ -45,8 +46,10 @@ udp_modem_worker::~udp_modem_worker() {
     delete[] tx_sample_ch;
     delete[] sig_tx;
 
+#ifdef LOCAL_FILE_WRITE
     delete file;
     delete out;
+#endif
 }
 
 void udp_modem_worker::udp_sig_tx() {
@@ -69,13 +72,12 @@ void udp_modem_worker::udp_sig_tx() {
 
     QHostAddress dest_addr(m_config->udpConfig.dest_ip);
     quint16 dest_port = m_config->udpConfig.dest_port;
-//    udp_send.bind(QHostAddress::AnyIPv4, m_config->udpConfig.local_port);
-    if(udp_send.bind(QHostAddress::AnyIPv4, m_config->udpConfig.local_port)){
-        qDebug() << "bind fail" << udp_send.errorString();
-//        return;
-    }else {
-        qDebug() << "bind success";
-    };
+//    //对于udp socket来说，bind只对接收有用。这里udp_send只用于发送，因此，bind没有意义
+//    if(udp_send.bind(m_config->udpConfig.local_port)){
+//        qDebug() << "Bind success";
+//    }else {
+//        qDebug() << "Udp socket bind fail: " << udp_send.errorString();
+//    };
 
     QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
     QVector<int> &channel_vec = m_config->channelConfig.channels;
@@ -121,12 +123,14 @@ void udp_modem_worker::udp_sig_tx() {
 
 
     // 信号循环
+#ifdef LOCAL_FILE_WRITE
     if(!file->open(QIODevice::WriteOnly | QIODevice::Append)){
         qWarning() << "failed to open file" << file->errorString();
         return;
     }
+#endif
     int idx_package = 0;
-    while (!m_config->quitNow && idx_package < 10000) {
+    while (!m_config->quitNow && idx_package < 1000) {
         qDebug() << "in loop";
 
         // chx
@@ -150,19 +154,18 @@ void udp_modem_worker::udp_sig_tx() {
             for (int i = 0; i < ch_size; i++) {
                 sig_sum[j] += std_noise * randnf() + std_ch[i] * sig_ch[i][j]; // randnf() + sig_ch[i]][j] ...
             }
-
             // AGC
             agc_rrrf_execute(agc, sig_sum[j], &tmp);
-
-            // udp socket
+            // prepare udp byte
             sig_tx[j] = (int32_t)(tmp * pow(2,29));
+#ifdef LOCAL_FILE_WRITE
+            // 写到本地文件，方便调试
             *out << sig_tx[j];
+#endif
             dstream << sig_tx[j];
         }
-
-//        qDebug() << "bytea len" << bytea.size();
+        // udp socket
         udp_send.writeDatagram(bytea, dest_addr, dest_port);
-        udp_send.close();
         bytea.clear();
         dstream.device()->seek(0);
 
@@ -173,8 +176,9 @@ void udp_modem_worker::udp_sig_tx() {
         idx_package++;
     } // while end
 
-
+#ifdef LOCAL_FILE_WRITE
     file->close();
+#endif
 
     for (int i = 0; i < ch_size; i++) {
         bfsk_vlf_destroy(fsk_generator_ch[i]);

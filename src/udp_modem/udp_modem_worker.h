@@ -15,6 +15,8 @@
 
 #define UDP_PACKAGE_SIZE 256 // in sample
 #define FRAME_SIZE (256+38+35)
+#define LOCAL_FILE_WRITE
+#undef  LOCAL_FILE_WRITE
 
 class udp_modem_widget;
 
@@ -50,9 +52,10 @@ private:
     QByteArray bytea;
     QDataStream dstream;
 
+#ifdef LOCAL_FILE_WRITE
     QFile *file;
     QDataStream *out;
-
+#endif
 
     int chx_generate_one_package_bfsk(bfsk_vlf_s * sig_gene_ch1,
                                        bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
