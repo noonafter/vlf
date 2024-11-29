@@ -15,8 +15,10 @@
 
 #define UDP_PACKAGE_SIZE 256 // in sample
 #define FRAME_SIZE (256+38+35)
-#define LOCAL_FILE_WRITE
-#undef  LOCAL_FILE_WRITE
+
+// 将待发送的udp包备份到本地文件，方便测试
+#define UDP_LOCAL_BACKUP
+#undef  UDP_LOCAL_BACKUP
 
 class udp_modem_widget;
 
@@ -52,7 +54,7 @@ private:
     QByteArray bytea;
     QDataStream dstream;
 
-#ifdef LOCAL_FILE_WRITE
+#ifdef UDP_LOCAL_BACKUP
     QFile *file;
     QDataStream *out;
 #endif

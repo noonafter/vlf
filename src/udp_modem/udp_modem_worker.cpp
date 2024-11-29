@@ -27,7 +27,7 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
 
     agc = agc_rrrf_create();
 
-#ifdef LOCAL_FILE_WRITE
+#ifdef UDP_LOCAL_BACKUP
     file = new QFile(R"(E:\project\vlf\src\udp_modem\sig_sum_int_tx)");
     out = new QDataStream(file);
     out->setFloatingPointPrecision(QDataStream::SinglePrecision);
@@ -46,7 +46,7 @@ udp_modem_worker::~udp_modem_worker() {
     delete[] tx_sample_ch;
     delete[] sig_tx;
 
-#ifdef LOCAL_FILE_WRITE
+#ifdef UDP_LOCAL_BACKUP
     delete file;
     delete out;
 #endif
@@ -123,7 +123,7 @@ void udp_modem_worker::udp_sig_tx() {
 
 
     // 信号循环
-#ifdef LOCAL_FILE_WRITE
+#ifdef UDP_LOCAL_BACKUP
     if(!file->open(QIODevice::WriteOnly | QIODevice::Append)){
         qWarning() << "failed to open file" << file->errorString();
         return;
@@ -158,8 +158,7 @@ void udp_modem_worker::udp_sig_tx() {
             agc_rrrf_execute(agc, sig_sum[j], &tmp);
             // prepare udp byte
             sig_tx[j] = (int32_t)(tmp * pow(2,29));
-#ifdef LOCAL_FILE_WRITE
-            // 写到本地文件，方便调试
+#ifdef UDP_LOCAL_BACKUP
             *out << sig_tx[j];
 #endif
             dstream << sig_tx[j];
@@ -172,20 +171,17 @@ void udp_modem_worker::udp_sig_tx() {
 
 //        QThread::msleep(1);
 
-
         idx_package++;
     } // while end
-
-#ifdef LOCAL_FILE_WRITE
-    file->close();
-#endif
 
     for (int i = 0; i < ch_size; i++) {
         bfsk_vlf_destroy(fsk_generator_ch[i]);
         msk_vlf_destroy(msk_generator_ch[i]);
     }
 
-
+#ifdef UDP_LOCAL_BACKUP
+    file->close();
+#endif
 }
 
 void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
