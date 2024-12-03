@@ -13,12 +13,23 @@
 #include "fsk_vlf.h"
 #include "msk_vlf.h"
 
-#define UDP_PACKAGE_SIZE 256 // in sample
+#define UDP_SAMPLE_SIZE 256 // in sample
 #define FRAME_SIZE (256+38+35)
 
 // 将待发送的udp包备份到本地文件，方便测试
 #define UDP_LOCAL_BACKUP
 #undef  UDP_LOCAL_BACKUP
+
+struct udp_pac_header {
+    uint32_t idx_pac;
+    uint8_t check_pac;
+    uint8_t version_stcp;
+    uint8_t control_trans;
+    uint8_t indicator_cache;
+    uint32_t ack_recv;
+    uint16_t app_type;
+    uint16_t pac_len;
+};
 
 class udp_modem_widget;
 
@@ -42,10 +53,13 @@ public slots:
 private:
     udp_wave_config *m_config;
 
+    struct udp_pac_header hd_business;
+    struct udp_pac_header hd_status;
+
     int ch_size;
     bool *is_sig_ch;
     int *tx_sample_ch;
-    float (*sig_ch)[UDP_PACKAGE_SIZE];
+    float (*sig_ch)[UDP_SAMPLE_SIZE];
     float *sig_sum;
     int32_t *sig_tx;
 

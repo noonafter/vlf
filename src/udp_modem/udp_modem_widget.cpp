@@ -24,9 +24,9 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     ui->comboBox_data_iq->addItem("I&Q");
 
     ui->doubleSpinBox_avg_power->setSuffix(" dB");
-    ui->comboBox_sample_rate->addItem(("48000 Hz"));
     ui->comboBox_sample_rate->addItem(("96000 Hz"));
     ui->comboBox_sample_rate->addItem(("192000 Hz"));
+    ui->comboBox_sample_rate->addItem(("384000 Hz"));
     ui->comboBox_symbol_rate->addItem("75 Hz");
     ui->comboBox_symbol_rate->addItem("150 Hz");
     ui->comboBox_wave_type->addItem("FSK");

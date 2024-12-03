@@ -8,6 +8,7 @@
 #include <qdebug.h>
 #include <QThread>
 #include <cmath>
+#include <QDateTime>
 
 
 #include "liquid.h"
@@ -18,6 +19,28 @@
 
 udp_modem_worker::udp_modem_worker(QObject *parent) :
         QObject(parent), udp_send(this), bytea(), dstream(&bytea, QIODevice::WriteOnly) {
+
+    hd_business = {
+            (uint32_t) 1,    //idx_pac
+            (uint8_t)  0,    //check_pac
+            (uint8_t)  0x10, //version_stcp
+            (uint8_t)  3,    //control_trans
+            (uint8_t)  0,    //indicator_cache
+            (uint32_t) 0,    //ack_recv
+            (uint16_t) 0,    //app_type;
+            (uint16_t) 0     //pac_len
+    };
+
+    hd_status = {
+            (uint32_t) 1,    //idx_pac
+            (uint8_t)  0,    //check_pac
+            (uint8_t)  0x10, //version_stcp
+            (uint8_t)  3,    //control_trans
+            (uint8_t)  0,    //indicator_cache
+            (uint32_t) 0,    //ack_recv
+            (uint16_t) 0,    //app_type;
+            (uint16_t) 0     //pac_len
+    };
 
     ch_size = 0;
     is_sig_ch = NULL;
@@ -129,9 +152,58 @@ void udp_modem_worker::udp_sig_tx() {
         return;
     }
 #endif
+
+    // 业务包参数
+    uint8_t idx_b0, idx_b1, idx_b2, idx_b3;
+    QDateTime cnt_time, last_time;
+    uint32_t mic_second;
+    uint8_t second,minute,hour;
+    last_time = QDateTime::currentDateTime().addSecs(-3600);
+
     int idx_package = 0;
     while (!m_config->quitNow && idx_package < 1000) {
         qDebug() << "in loop";
+
+        // 业务包
+        idx_b0 = (hd_business.idx_pac >> 0) & 0xFF;
+        idx_b1 = (hd_business.idx_pac >> 8) & 0xFF;
+        idx_b2 = (hd_business.idx_pac >> 16) & 0xFF;
+        idx_b3 = (hd_business.idx_pac >> 24) & 0xFF;
+        hd_business.check_pac = idx_b0 ^ idx_b1 ^ idx_b2 ^ idx_b3;
+        hd_business.pac_len = 1064;
+        cnt_time = QDateTime::currentDateTime();
+        mic_second = cnt_time.time().msec() * 1000;
+        second = cnt_time.time().second();
+        minute = cnt_time.time().minute();
+        hour = cnt_time.time().hour();
+
+                // header
+        dstream << hd_business.idx_pac++
+                << hd_business.check_pac
+                << hd_business.version_stcp
+                << hd_business.control_trans
+                << hd_business.indicator_cache
+                << hd_business.ack_recv
+                << hd_business.app_type
+                << hd_business.pac_len
+                // 时标参数块
+                << (uint8_t) 0x7e
+                << (uint8_t) 0x10
+                << (uint16_t) 0x0008
+                << mic_second
+                << second
+                << minute
+                << hour
+                << (uint8_t) 0x11
+                // 采样率参数块
+                << (uint8_t) 0x7e
+                << (uint8_t) 0x03
+                << (uint16_t) 0x0004
+                << (uint32_t) fsa_ch[0]
+                // 数据块
+                << (uint8_t) 0x81
+                << (uint8_t) 0x01
+                << (uint16_t) (UDP_SAMPLE_SIZE<<2);
 
         // chx
         for (int i = 0; i < ch_size; i++) {
@@ -148,7 +220,7 @@ void udp_modem_worker::udp_sig_tx() {
             }
         }
 
-        for (int j = 0; j < UDP_PACKAGE_SIZE; j++) {
+        for (int j = 0; j < UDP_SAMPLE_SIZE; j++) {
             sig_sum[j] = 0;
             // noise
             for (int i = 0; i < ch_size; i++) {
@@ -167,6 +239,34 @@ void udp_modem_worker::udp_sig_tx() {
         udp_send.writeDatagram(bytea, dest_addr, dest_port);
         bytea.clear();
         dstream.device()->seek(0);
+
+
+
+//        // 状态包
+//        if(last_time.secsTo(cnt_time) >= 5*60){
+//
+//            // 产生状态包
+//            hd_business.pac_len = 1064;
+//
+//                    // header
+//            dstream << hd_status.idx_pac++
+//                    << hd_status.check_pac
+//                    << hd_status.version_stcp
+//                    << hd_status.control_trans
+//                    << hd_status.indicator_cache
+//                    << hd_status.ack_recv
+//                    << hd_status.app_type
+//                    << hd_status.pac_len;
+//                    //
+//
+//            // 发送状态包
+//            udp_send.writeDatagram(bytea, dest_addr, dest_port);
+//            bytea.clear();
+//            dstream.device()->seek(0);
+//
+//            last_time = cnt_time;
+//        }
+
 
 
 //        QThread::msleep(1);
@@ -189,14 +289,14 @@ void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
 
     ch_size = m_config->wave_config_vec.size();
 
-    sig_ch = new float[ch_size][UDP_PACKAGE_SIZE];
-    sig_sum = new float[UDP_PACKAGE_SIZE];
+    sig_ch = new float[ch_size][UDP_SAMPLE_SIZE];
+    sig_sum = new float[UDP_SAMPLE_SIZE];
     is_sig_ch = new bool[ch_size];
     tx_sample_ch = new int[ch_size];
-    sig_tx = new int32_t[UDP_PACKAGE_SIZE];
+    sig_tx = new int32_t[UDP_SAMPLE_SIZE];
 
-    memset(sig_ch, 0, ch_size * UDP_PACKAGE_SIZE * sizeof(float));
-    memset(sig_sum, 0, UDP_PACKAGE_SIZE*sizeof(float));
+    memset(sig_ch, 0, ch_size * UDP_SAMPLE_SIZE * sizeof(float));
+    memset(sig_sum, 0, UDP_SAMPLE_SIZE * sizeof(float));
     memset(is_sig_ch, 0, ch_size * sizeof(bool));
     memset(tx_sample_ch, 0, ch_size * sizeof(int));
 
@@ -216,7 +316,7 @@ int udp_modem_worker::chx_generate_one_package_bfsk(bfsk_vlf_s *sig_gene_ch1,
     // tx_sample_ch1用来监控是信号还是间隔
     int i = 0;
     // 进入初始延迟，信号为0
-    for (; !is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+    for (; !is_sig_chx && i < UDP_SAMPLE_SIZE; i++) {
         sig_chx[i] = 0;
         // 下一个点是信号，状态重置
         if (++tx_sample_chx >= init_delay_chx) {
@@ -225,7 +325,7 @@ int udp_modem_worker::chx_generate_one_package_bfsk(bfsk_vlf_s *sig_gene_ch1,
         }
     }
     // 进入信号/间隔
-    for (; is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+    for (; is_sig_chx && i < UDP_SAMPLE_SIZE; i++) {
         // 信号
         if (tx_sample_chx < siglen_chx) {
             // 这里if不能合并，否则大部分情况都会进入间隔，将信号覆盖了
@@ -254,7 +354,7 @@ int udp_modem_worker::chx_generate_one_package_msk(msk_vlf_s *sig_gene_ch1,
     // tx_sample_ch1用来监控是信号还是间隔
     int i = 0;
     // 进入初始延迟，信号为0
-    for (; !is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+    for (; !is_sig_chx && i < UDP_SAMPLE_SIZE; i++) {
         sig_chx[i] = 0;
         // 下一个点是信号，状态重置
         if (++tx_sample_chx >= init_delay_chx) {
@@ -263,7 +363,7 @@ int udp_modem_worker::chx_generate_one_package_msk(msk_vlf_s *sig_gene_ch1,
         }
     }
     // 进入信号/间隔
-    for (; is_sig_chx && i < UDP_PACKAGE_SIZE; i++) {
+    for (; is_sig_chx && i < UDP_SAMPLE_SIZE; i++) {
         // 信号
         if (tx_sample_chx < siglen_chx) {
             // 这里if不能合并，否则大部分情况都会进入间隔，将信号覆盖了
