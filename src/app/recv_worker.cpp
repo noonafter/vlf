@@ -43,7 +43,8 @@ void recv_worker::slot_udp_recv_readyRead() {
         QNetworkDatagram datagram = udp_recv->receiveDatagram();
 
         // 处理datagram
-        out->writeRawData(datagram.data(),datagram.data().size());
+        QByteArray aba = datagram.data();
+        out->writeRawData(aba,aba.size());
         count_rev++;
     }
 

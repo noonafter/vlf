@@ -22,7 +22,7 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
 
     dstream.setFloatingPointPrecision(QDataStream::SinglePrecision);
     hd_business = {
-            (uint32_t) 1,    //idx_pac
+            (uint32_t) 0,    //idx_pac
             (uint8_t)  0,    //check_pac
             (uint8_t)  0x10, //version_stcp
             (uint8_t)  3,    //control_trans
@@ -33,7 +33,7 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
     };
 
     hd_status = {
-            (uint32_t) 1,    //idx_pac
+            (uint32_t) 0,    //idx_pac
             (uint8_t)  0,    //check_pac
             (uint8_t)  0x10, //version_stcp
             (uint8_t)  3,    //control_trans
@@ -155,14 +155,13 @@ void udp_modem_worker::udp_sig_tx() {
 #endif
 
     // 业务包参数
-    uint8_t idx_b0, idx_b1, idx_b2, idx_b3;
     QDateTime cnt_time, last_time;
     uint32_t mic_second;
     uint8_t second,minute,hour;
     last_time = QDateTime::currentDateTime().addSecs(-3600);
 
     int idx_package = 0;
-    while (!m_config->quitNow && idx_package < 1) {
+    while (!m_config->quitNow && idx_package < 1000) {
         qDebug() << "in loop";
         cnt_time = QDateTime::currentDateTime();
 
@@ -170,12 +169,11 @@ void udp_modem_worker::udp_sig_tx() {
         if(last_time.secsTo(cnt_time) >= 5*60){
 
             // 产生状态包
-            idx_b0 = (hd_status.idx_pac >> 0) & 0xFF;
-            idx_b1 = (hd_status.idx_pac >> 8) & 0xFF;
-            idx_b2 = (hd_status.idx_pac >> 16) & 0xFF;
-            idx_b3 = (hd_status.idx_pac >> 24) & 0xFF;
-            hd_status.check_pac = idx_b0 ^ idx_b1 ^ idx_b2 ^ idx_b3;
-            hd_status.pac_len = 40;
+            if (hd_status.idx_pac == 0)
+                hd_status.idx_pac = 1;
+            hd_status.check_pac = (hd_status.idx_pac >> 0) ^ (hd_status.idx_pac >> 8) ^
+                                  (hd_status.idx_pac >> 16) ^ (hd_status.idx_pac >> 24) & 0xFF;
+            hd_status.pac_len = 44;
 
                     // header
             dstream << hd_status.idx_pac++
@@ -189,12 +187,16 @@ void udp_modem_worker::udp_sig_tx() {
                     // 自定义数据头
                     << (uint8_t) 0x7e
                     << (uint8_t) 0xef
-                    << (uint16_t) 0x0014
+                    << (uint16_t) 0x0018
                     << (uint32_t) 0
-                    << (uint32_t) (cnt_time.toString().toInt())
+                    << (uint32_t) (cnt_time.toString("yyyyMMdd").toUInt())
                     << 30.5982f
                     << 114.3055f
-                    << 0.0f;
+                    << 0.0f
+                    << (uint8_t) 1
+                    << (uint8_t) 0
+                    << (uint8_t) 0
+                    << (uint8_t) 0;
 
             // 发送状态包
             udp_send.writeDatagram(bytea, dest_addr, dest_port);
@@ -205,12 +207,11 @@ void udp_modem_worker::udp_sig_tx() {
         }
 
         // 业务包
-        idx_b0 = (hd_business.idx_pac >> 0) & 0xFF;
-        idx_b1 = (hd_business.idx_pac >> 8) & 0xFF;
-        idx_b2 = (hd_business.idx_pac >> 16) & 0xFF;
-        idx_b3 = (hd_business.idx_pac >> 24) & 0xFF;
-        hd_business.check_pac = idx_b0 ^ idx_b1 ^ idx_b2 ^ idx_b3;
-        hd_business.pac_len = 1064;
+        if (hd_business.idx_pac == 0)
+            hd_business.idx_pac = 1;
+        hd_business.check_pac = (hd_business.idx_pac >> 0) ^ (hd_business.idx_pac >> 8) ^
+                                (hd_business.idx_pac >> 16) ^ (hd_business.idx_pac >> 24) & 0xFF;
+        hd_business.pac_len = 1076;
         mic_second = cnt_time.time().msec() * 1000;
         second = cnt_time.time().second();
         minute = cnt_time.time().minute();
@@ -237,11 +238,16 @@ void udp_modem_worker::udp_sig_tx() {
                 // 采样率参数块
                 << (uint8_t) 0x7e
                 << (uint8_t) 0x03
-                << (uint16_t) 0x0004
+                << (uint16_t) 0x000c
+                << (uint8_t) 0
+                << (uint8_t) 1
+                << (uint16_t) 1
                 << (uint32_t) fsa_ch[0]
+                << (uint32_t) 10000
+                << (uint32_t) 60000
                 // 数据块
-                << (uint8_t) 0x81
-                << (uint8_t) 0x01
+                << (uint8_t) 0x7e
+                << (uint8_t) 0x05
                 << (uint16_t) (UDP_SAMPLE_SIZE<<2);
 
         // chx
