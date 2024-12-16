@@ -3,14 +3,15 @@ set (APP_SRC
 
     main.cpp
     mainwindow.cpp
-
-    recv_worker.cpp 
-    recv_worker.h
+    vlfabstractreceiver.cpp
+    VLFUdpReceiver.cpp
     )
 
 set(APP_HDRS
 
     mainwindow.h
+    vlfabstractreceiver.h
+    VLFUdpReceiver.h
 
     )
 

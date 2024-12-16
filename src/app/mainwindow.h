@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QThread>
 #include "recv_worker.h"
+#include "VLFUdpReceiver.h"
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -19,7 +21,8 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    QThread *worker_recv_thread;
-    recv_worker *rx_worker;
+    QThread *recv_thread;
+    VLFAbstractReceiver *vlf_receiver;
+
 };
 #endif // MAINWINDOW_H
