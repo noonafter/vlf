@@ -5,6 +5,8 @@ set (APP_SRC
     mainwindow.cpp
     vlfabstractreceiver.cpp
     VLFUdpReceiver.cpp
+    vlfchannel.cpp
+    vlfchannel.h
     )
 
 set(APP_HDRS
