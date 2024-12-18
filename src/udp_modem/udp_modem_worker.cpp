@@ -188,7 +188,7 @@ void udp_modem_worker::udp_sig_tx() {
                     << (uint8_t) 0x7e
                     << (uint8_t) 0xef
                     << (uint16_t) 0x0018
-                    << (uint32_t) 0
+                    << (uint32_t) 0 // device state, 0:normal, 1:error
                     << (uint32_t) (cnt_time.toString("yyyyMMdd").toUInt())
                     << 30.5982f
                     << 114.3055f

@@ -23,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
     for (int i = 0; i < CHANNEL_COUNT; i++) {
         vlf_ch[i]->moveToThread(ch_thread[i]);
         // new VLFChannel[CHANNEL_COUNT]这么写访问和析构会有问题，不要这么写。搞一个指针数组，分开new。
-        connect(ch_thread[i], &QThread::finished, vlf_ch[i], &QObject::deleteLater);
+        connect(ch_thread[i], &QThread::finished, vlf_ch[i], &QObject::deleteLater); // 直接连接，发出同时
         connect(ch_thread[i], &QThread::finished, ch_thread[i], &QObject::deleteLater);
     }
 
