@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QThread>
-#include "recv_worker.h"
 #include "VLFUdpReceiver.h"
 #include "vlfchannel.h"
 

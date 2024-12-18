@@ -7,6 +7,8 @@
 
 #include <QObject>
 #include "vlfchannel.h"
+#include <QTimer>
+
 #define CHANNEL_COUNT (4)
 
 // VLFAbstractReceiver屏蔽不同数据采集设备区别，统一数据接收处理逻辑。
@@ -24,15 +26,19 @@ public:
     virtual void slot_receiver_readyRead() = 0;
 
     // 包处理函数，判断是status包还是business包，更新设备级参数，并推送至对应通道
-    void process_package(const QByteArray byte_array);
+    void process_package(const QByteArray &byte_array);
 
     // 通道注册
-    void set_vlf_ch(VLFChannel *ch);
+    void set_vlf_ch(QVector<VLFChannel*> *chs);
 
     ~VLFAbstractReceiver() override;
 
+signals:
+    void signal_device_info_updated(quint32 year_month_day_n, float longitude_n, float latitude_n, float altitude_n);
+    void signal_business_package_ready(quint8 idx_ch, QSharedPointer<QByteArray> ptr_package);
+
 private:
-    VLFChannel *vlf_ch;
+    QVector<VLFChannel *> *vlf_ch;
 
     uint32_t device_state;
     uint32_t year_month_day;

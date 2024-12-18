@@ -15,8 +15,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
         ch_thread[i] = new QThread();
-        vlf_ch[i] = new VLFChannel();
+        vlf_ch[i] = new VLFChannel(i);
     }
+    vlf_receiver->set_vlf_ch(&vlf_ch);
 
     // 次线程事件循环停止后，自动销毁相关对象
     vlf_receiver->moveToThread(recv_thread);
