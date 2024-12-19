@@ -7,17 +7,29 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ch_thread(CHANNEL_COUNT), vlf_ch(CHANNEL_COUNT)
     , ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
+    qRegisterMetaType<QSharedPointer<QByteArray>>("QSharedPointer<QByteArray>");
+    qRegisterMetaType<VLFDeviceConfig>("VLFDeviceConfig");
+    qRegisterMetaType<VLFChannelConfig>("VLFChannelConfig");
 
-    // 多线程相关对象
+    // 获取资源（对象）
+    ui->setupUi(this);
+    QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
+    recv_config = new VLFReceiverConfig(file_name);
+    // 多线程对象
     recv_thread = new QThread();
     vlf_receiver = new VLFUdpReceiver();
-
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
         ch_thread[i] = new QThread();
         vlf_ch[i] = new VLFChannel(i);
     }
-    vlf_receiver->set_vlf_ch(&vlf_ch);
+
+
+    // 处理业务逻辑，保证线程安全
+    // 具体业务逻辑：
+    // vlf_receiver移动到recv_thread线程，保证协议数据包接收和分发单独使用一个线程，不会卡住主线程
+    // vlf_ch[i]移动到对应线程，保证该通道业务包的接收和处理单独使用一个线程，不会卡住主线程
+    // vlf_receiver绑定vlf_ch数组，保证接收协议数据包后，能转发给对应通道，能通知各通道更新参数
+    // vlf_receiver绑定recv_config，保证接收机正确进行参数配置和管理
 
     // 次线程事件循环停止后，自动销毁相关对象
     vlf_receiver->moveToThread(recv_thread);
@@ -27,15 +39,17 @@ MainWindow::MainWindow(QWidget *parent)
         connect(ch_thread[i], &QThread::finished, vlf_ch[i], &QObject::deleteLater); // 直接连接，发出同时
         connect(ch_thread[i], &QThread::finished, ch_thread[i], &QObject::deleteLater);
     }
-
     connect(recv_thread, &QThread::finished, vlf_receiver, &QObject::deleteLater);
     connect(recv_thread, &QThread::finished, recv_thread, &QObject::deleteLater);
 
-    // 开启多线程环境
+    vlf_receiver->set_vlf_ch(&vlf_ch);
+    // 绑定的同时，将设备参数推到所有通道一次，通道参数推到对应通道一次
+    vlf_receiver->set_vlf_config(recv_config);
+
+    // 开启多线程环境，启动业务
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
         ch_thread[i]->start();
     }
-
     recv_thread->start();
     // 注册接收函数，并开始监听数据端口
     QTimer::singleShot(0, vlf_receiver, &VLFAbstractReceiver::startReceiving);
@@ -55,6 +69,8 @@ MainWindow::~MainWindow()
         // 阻塞当前线程，等待finish()函数执行完毕，发出finished信号，处理延迟删除事件，清理线程资源
         recv_thread->wait();
     }
+
+    delete recv_config;
 
     delete ui;
 }

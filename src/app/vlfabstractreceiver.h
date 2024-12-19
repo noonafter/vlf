@@ -8,11 +8,12 @@
 #include <QObject>
 #include "vlfchannel.h"
 #include <QTimer>
+#include "VLFReceiverConfig.h"
 
-#define CHANNEL_COUNT (4)
 
-// VLFAbstractReceiver屏蔽不同数据采集设备区别，统一数据接收处理逻辑。
-// 同时将设备级参数汇总在一起，提供统一的数据访问接口
+// VLFAbstractReceiver
+// 1 屏蔽不同数据采集设备区别，统一数据接收处理逻辑，比如处理后分发到4个通道。
+// 2 同时将设备参数（包括通道参数）汇总在一起，提供统一的数据访问接口（内部类）
 class VLFAbstractReceiver : public QObject {
 Q_OBJECT
 
@@ -30,28 +31,21 @@ public:
 
     // 通道注册
     void set_vlf_ch(QVector<VLFChannel*> *chs);
+    // 配置类注册
+    void set_vlf_config(VLFReceiverConfig* config);
 
     ~VLFAbstractReceiver() override;
 
 signals:
-    void signal_device_info_updated(quint32 year_month_day_n, float longitude_n, float latitude_n, float altitude_n);
+    void signal_device_info_updated(VLFDeviceConfig d_config);
+    void signal_channel_info_updated(quint8 idx_ch, VLFChannelConfig ch_config);
     void signal_business_package_ready(quint8 idx_ch, QSharedPointer<QByteArray> ptr_package);
 
 private:
-    QVector<VLFChannel *> *vlf_ch;
+    QVector<VLFChannel *> *m_chs;
 
-    uint32_t device_state;
-    uint32_t year_month_day;
-    float longitude;
-    float latitude;
-    float altitude;
-    uint8_t ch0_state;
-    uint8_t ch1_state;
-    uint8_t ch2_state;
-    uint8_t ch3_state;
-
-
-
+    // 将设备参数和所有通道参数，都装到配置类中，提供统一的数据访问接口
+    VLFReceiverConfig* m_config;
 
 };
 

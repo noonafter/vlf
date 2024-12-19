@@ -8,21 +8,21 @@
 #include <QDebug>
 #include <QThread>
 #include <QtEndian>
+#include <QDataStream>
 
 VLFChannel::VLFChannel(QObject *parent) : QObject(parent){
 
-    open_state = true;
+    ch_info.open_state = true;
 
     last_channel_params = QByteArray(16,'\0');
     last_udp_idx = 0;
 
 }
 
-VLFChannel::VLFChannel(int idx) :channel_id(idx) {
-//    VLFChannel();？？？
+VLFChannel::VLFChannel(int idx)  {
 
-// 加载本地配置，如果没有就使用默认配置
-    open_state = true;
+    ch_info.channel_id = idx;
+    ch_info.open_state = true;
 
     last_channel_params = QByteArray(16,'\0');
     last_udp_idx = 0;
@@ -40,22 +40,35 @@ VLFChannel::~VLFChannel() {
 
 }
 
-void VLFChannel::slot_device_info_update(quint32 year_month_day_n, float longitude_n, float latitude_n, float altitude_n) {
+void VLFChannel::slot_device_info_update(VLFDeviceConfig d_config) {
 
-    year_month_day = year_month_day_n;
-    longitude = longitude_n;
-    latitude = latitude_n;
-    altitude = altitude_n;
+    d_info = d_config;
 
+}
+
+void VLFChannel::slot_channel_info_update(quint8 idx_ch, VLFChannelConfig ch_config) {
+
+    if (ch_info.channel_id != idx_ch) {
+        return;
+    }
+    ch_info = ch_config;
+    last_udp_idx = 0;
+    QDataStream out(&last_channel_params,QIODevice::WriteOnly);
+    out << ch_info.channel_id
+        << ch_info.data_type
+        << ch_info.save_type
+        << ch_info.sample_rate
+        << ch_info.freq_lower_edge
+        << ch_info.freq_upper_edge;
 }
 
 void VLFChannel::slot_business_package_push(quint8 idx_ch, QSharedPointer<QByteArray> ptr_package) {
 
-    if (channel_id != idx_ch) {
+    if (ch_info.channel_id != idx_ch) {
         return;
     }
 
-    if (!open_state || ptr_package->size() < 1076) {
+    if (!ch_info.open_state || ptr_package->size() < 1076) {
         return;
     }
 
@@ -64,17 +77,6 @@ void VLFChannel::slot_business_package_push(quint8 idx_ch, QSharedPointer<QByteA
     if(last_channel_params != ptr_package->mid(32,16)){
         return;
     }
-//    if (!is_init) {
-//        last_channel_params = ptr_package->mid(32,16);
-//        data_type = ptr_package->at(33);
-//        save_type = (uint16_t)(ptr_package->at(34) << 8) | (uint16_t)(ptr_package->at(35));
-//        sample_rate = qToBigEndian(*reinterpret_cast<const uint32_t *>((ptr_package->mid(36, 4).constData())));
-//        freq_lower_edge = qToBigEndian(*reinterpret_cast<const uint32_t *>((ptr_package->mid(40, 4).constData())));
-//        freq_upper_edge = qToBigEndian(*reinterpret_cast<const uint32_t *>((ptr_package->mid(44, 4).constData())));
-//        is_init = true;
-//    } else if(){
-//        return;
-//    }
 
     uint32_t cnt_udp_idx = qToBigEndian(*reinterpret_cast<const uint32_t *>((ptr_package->mid(0, 4).constData())));
     // 如果udp包号小于上一次的号且号码邻近，说明这一包晚到了，直接丢掉
@@ -87,6 +89,8 @@ void VLFChannel::slot_business_package_push(quint8 idx_ch, QSharedPointer<QByteA
     qDebug() << "slot_business_package_push, pac_idx:" << last_udp_idx;
 
 }
+
+
 
 
 

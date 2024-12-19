@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    qRegisterMetaType<QSharedPointer<QByteArray>>("QSharedPointer<QByteArray>");
+
 
     QApplication a(argc, argv);
     MainWindow w;
