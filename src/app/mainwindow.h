@@ -11,7 +11,7 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-// 所有类都遵循RAII的原则进行设计：通过对象生命周期来管理资源，在构造函数中获取资源，并正确初始化，在析构函数中，释放资源。使用智能指针etc
+// 所有类都遵循RAII的原则进行设计：通过对象生命周期来管理资源，在构造函数中获取资源，并正确初始化，在析构函数中，释放资源。或直接使用智能指针etc
 
 // MainWindow其实承担了controler的角色：
 //1 获取各种资源（对象），包括：主界面，vlf_receiver（包括recv线程），四个通道对象（包括ch线程），receiver配置类

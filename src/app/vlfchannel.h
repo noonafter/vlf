@@ -7,6 +7,9 @@
 
 #include <QObject>
 #include "VLFReceiverConfig.h"
+#include "readerwriterqueue.h"
+
+using namespace moodycamel;
 
 class VLFChannel : public QObject {
 Q_OBJECT
@@ -26,6 +29,7 @@ public slots:
     void slot_business_package_push(quint8 idx_ch, QSharedPointer<QByteArray> ptr_package);
 
 private:
+
 
     QByteArray last_channel_params;
     uint32_t last_udp_idx;
