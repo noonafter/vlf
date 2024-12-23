@@ -39,7 +39,7 @@ public:
 signals:
     void signal_device_info_updated(VLFDeviceConfig d_config);
     void signal_channel_info_updated(quint8 idx_ch, VLFChannelConfig ch_config);
-    void signal_business_package_ready(quint8 idx_ch, QSharedPointer<QByteArray> ptr_package);
+    void signal_business_package_enqueued(quint8 idx_ch);
 
 private:
     QVector<VLFChannel *> *m_chs;

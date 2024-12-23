@@ -25,11 +25,11 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
 
     int byte_size = byte_array.size();
     // 这里的一个接收机，四个通道，实际上是4个单一生产者&单一消费者的模型
-    // 如果这里采用智能指针+信号槽的方式进行数据传递，实际上相当于开了一个可用内存大小的队列，这种做有几个缺点：
-    // 1 队列大小相当于堆的大小，如果生产者速度过快，或者消费者卡顿，很容易导致堆内存溢出，从而导致new失败抛出异常.当然可以用一些其他的办法来限制队列大小，比如对同类智能指针个数进行计数并限制
-    // 2 消费者取数据时，只能保持与生产者同样的数据大小，后续如果需要一次读取更多的数据，还是需要自己写一个缓存
-    //综合以上，为了防止潜在的堆内存溢出的风险，并且方便消费者取任意长数据，考虑使用网上现有的单一生产者&单一消费者队列
-    QSharedPointer<QByteArray> p_package =  QSharedPointer<QByteArray>(new QByteArray(byte_array));
+    // 这里有两种实现方式：1.信号槽；2.并发队列
+    // 如果采用信号槽的方式（信号槽+对象，注意不是引用）进行大量数据的传递，虽然qt的cow机制避免了大量数据的复制，但是这种做有几个缺点：
+    // 1 信号槽机制实际上相当于开了一个可用内存大小的队列，如果生产者速度过快，或者消费者卡顿，很容易导致堆内存溢出。仍然需要用其他方法辅助进行限制，比如智能指针计数。
+    // 2 消费者取数据时，只能保持与生产者同样的数据大小，如果希望一次读取更多的数据，还需要自己写一个缓存
+    //综合以上，为了防止潜在的堆内存溢出的风险，并且方便消费者取任意长数据，考虑使用网上现有的并发队列
 
     if(byte_size < 500 && byte_size >= 44){ // 状态包，更新设备参数
 
@@ -53,8 +53,10 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
 
         if(byte_array.at(28) == (char)0x7e && byte_array.at(29) == (char)0x03){
             quint8 idx_ch = (quint8) (byte_array.at(32));
-//            qDebug() << "idx_ch: " << idx_ch;
-             emit signal_business_package_ready(idx_ch, p_package);
+            // 尝试转发，如果queue存在空位
+            if(m_chs->at(idx_ch)->package_enqueue(byte_array)){
+                emit signal_business_package_enqueued(idx_ch);
+            }
         }
 
     }
@@ -66,7 +68,7 @@ void VLFAbstractReceiver::set_vlf_ch(QVector<VLFChannel *> *chs) {
     for (auto ch: *m_chs) {
         connect(this, &VLFAbstractReceiver::signal_device_info_updated, ch, &VLFChannel::slot_device_info_update);
         connect(this, &VLFAbstractReceiver::signal_channel_info_updated, ch, &VLFChannel::slot_channel_info_update);
-        connect(this, &VLFAbstractReceiver::signal_business_package_ready, ch, &VLFChannel::slot_business_package_push);
+        connect(this, &VLFAbstractReceiver::signal_business_package_enqueued, ch, &VLFChannel::slot_business_package_enqueued);
     }
 }
 
