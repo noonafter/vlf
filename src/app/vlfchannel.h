@@ -23,8 +23,8 @@ public:
 
 public slots:
     void slot_device_info_update(VLFDeviceConfig d_config);
-    void slot_channel_info_update(quint8 idx_ch, VLFChannelConfig ch_config);
-    void slot_business_package_enqueued(quint8 idx_ch);
+    void slot_channel_info_update(VLFChannelConfig ch_config);
+    void slot_business_package_enqueued();
 
 private:
 

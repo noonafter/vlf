@@ -9,10 +9,13 @@
 
 
 VLFAbstractReceiver::VLFAbstractReceiver(QObject *parent) :
-        QObject(parent) {
-
+        QObject(parent), m_sender(CHANNEL_COUNT) {
     m_chs = nullptr;
     m_config = nullptr;
+
+    for(int i = 0; i < CHANNEL_COUNT; ++i){
+        m_sender[i] = new SignalSender(this);
+    }
 
 }
 
@@ -53,9 +56,9 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
 
         if(byte_array.at(28) == (char)0x7e && byte_array.at(29) == (char)0x03){
             quint8 idx_ch = (quint8) (byte_array.at(32));
-            // 尝试转发，如果queue存在空位
+            // 尝试转发，如果queue存在空位。转发后，由于qt的cow机制，入队实际上实现了移动拷贝的效果。
             if(m_chs->at(idx_ch)->package_enqueue(byte_array)){
-                emit signal_business_package_enqueued(idx_ch);
+                m_sender[idx_ch]->emit_signal_business_package_enqueued();
             }
         }
 
@@ -65,10 +68,10 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
 
 void VLFAbstractReceiver::set_vlf_ch(QVector<VLFChannel *> *chs) {
     m_chs = chs;
-    for (auto ch: *m_chs) {
-        connect(this, &VLFAbstractReceiver::signal_device_info_updated, ch, &VLFChannel::slot_device_info_update);
-        connect(this, &VLFAbstractReceiver::signal_channel_info_updated, ch, &VLFChannel::slot_channel_info_update);
-        connect(this, &VLFAbstractReceiver::signal_business_package_enqueued, ch, &VLFChannel::slot_business_package_enqueued);
+    for (int i = 0; i < CHANNEL_COUNT; ++i) {
+        connect(this, &VLFAbstractReceiver::signal_device_info_updated, m_chs->at(i), &VLFChannel::slot_device_info_update);
+        connect(m_sender[i], &SignalSender::signal_channel_info_updated, m_chs->at(i), &VLFChannel::slot_channel_info_update);
+        connect(m_sender[i], &SignalSender::signal_business_package_enqueued, m_chs->at(i), &VLFChannel::slot_business_package_enqueued);
     }
 }
 
@@ -76,7 +79,7 @@ void VLFAbstractReceiver::set_vlf_config(VLFReceiverConfig *config) {
     m_config = config;
     emit signal_device_info_updated(m_config->device_config);
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
-        emit signal_channel_info_updated(i, m_config->ch_config_vec[i]);
+        m_sender[i]->emit_signal_channel_info_updated(m_config->ch_config_vec[i]);
     }
 }
 

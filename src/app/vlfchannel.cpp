@@ -51,11 +51,8 @@ void VLFChannel::slot_device_info_update(VLFDeviceConfig d_config) {
 
 }
 
-void VLFChannel::slot_channel_info_update(quint8 idx_ch, VLFChannelConfig ch_config) {
+void VLFChannel::slot_channel_info_update(VLFChannelConfig ch_config) {
 
-    if (ch_info.channel_id != idx_ch) {
-        return;
-    }
     ch_info = ch_config;
     last_udp_idx = 0;
     QDataStream out(&last_channel_params,QIODevice::WriteOnly);
@@ -69,11 +66,7 @@ void VLFChannel::slot_channel_info_update(quint8 idx_ch, VLFChannelConfig ch_con
 
 
 
-void VLFChannel::slot_business_package_enqueued(quint8 idx_ch) {
-
-    if (ch_info.channel_id != idx_ch) {
-        return;
-    }
+void VLFChannel::slot_business_package_enqueued() {
 
     QByteArray package;
     if(!m_queue.try_dequeue(package)){
@@ -92,18 +85,17 @@ void VLFChannel::slot_business_package_enqueued(quint8 idx_ch) {
 
     uint32_t cnt_udp_idx = qToBigEndian(*reinterpret_cast<const uint32_t *>((package.mid(0, 4).constData())));
     // 如果udp包号小于上一次的号且号码邻近，说明这一包晚到了，直接丢掉
-    static int drop_count = 0;
     if (cnt_udp_idx <= last_udp_idx && last_udp_idx - cnt_udp_idx < 1<<20) {
-        drop_count++;
         return;
     }
     last_udp_idx = cnt_udp_idx;
 
-if(drop_count){
-    qDebug() << "drop_count:" << drop_count;
+    static int drop_count = 0;
+    drop_count++;
+    if(!(drop_count%500)){
+        qDebug() << "drop_count:" << drop_count;
+    }
 
-}
-    qDebug() << "slot_business_package_push, pac_idx:" << last_udp_idx;
 }
 
 

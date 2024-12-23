@@ -10,7 +10,7 @@
 #include <QTimer>
 #include "VLFReceiverConfig.h"
 
-
+class SignalSender;
 // VLFAbstractReceiver
 // 1 屏蔽不同数据采集设备区别，统一数据接收处理逻辑，比如处理后分发到4个通道。
 // 2 同时将设备参数（包括通道参数）汇总在一起，提供统一的数据访问接口（内部类）
@@ -38,16 +38,33 @@ public:
 
 signals:
     void signal_device_info_updated(VLFDeviceConfig d_config);
-    void signal_channel_info_updated(quint8 idx_ch, VLFChannelConfig ch_config);
-    void signal_business_package_enqueued(quint8 idx_ch);
 
 private:
+    QVector<SignalSender*> m_sender;
     QVector<VLFChannel *> *m_chs;
 
     // 将设备参数和所有通道参数，都装到配置类中，提供统一的数据访问接口
     VLFReceiverConfig* m_config;
 
+
 };
 
+class SignalSender : public QObject{
+Q_OBJECT
+public:
+    explicit SignalSender(QObject *parent) : QObject(parent) {}
 
+signals:
+    void signal_channel_info_updated(VLFChannelConfig ch_config);
+    void signal_business_package_enqueued();
+
+public:
+    void emit_signal_channel_info_updated(VLFChannelConfig ch_config){
+        emit signal_channel_info_updated(ch_config);
+    }
+
+    void emit_signal_business_package_enqueued(){
+        emit signal_business_package_enqueued();
+    }
+};
 #endif //VLF_VLFABSTRACTRECEIVER_H
