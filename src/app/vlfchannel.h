@@ -37,6 +37,8 @@ private:
     // 通道级参数
     VLFChannelConfig ch_info;
 
+
+    int recv_count;
 };
 
 

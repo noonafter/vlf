@@ -18,6 +18,8 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent){
     last_channel_params = QByteArray(16,'\0');
     last_udp_idx = 0;
 
+    recv_count = 0;
+
 }
 
 VLFChannel::VLFChannel(int idx)  {
@@ -90,10 +92,10 @@ void VLFChannel::slot_business_package_enqueued() {
     }
     last_udp_idx = cnt_udp_idx;
 
-    static int drop_count = 0;
-    drop_count++;
-    if(!(drop_count%500)){
-        qDebug() << "drop_count:" << drop_count;
+//    static int recv_count = 0;
+    recv_count++;
+    if(!(recv_count%500)){
+        qDebug() << "drop_count:" << recv_count;
     }
 
 }
