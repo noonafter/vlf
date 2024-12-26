@@ -27,11 +27,9 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_file() {
     file_path_changed = true;
     rawdata_file_name = "";
     rawdata_file_path = "";
-//    rawdata_file_hd = FileHandler();
 }
 
-VLFChannel::VLFChannel(int idx)  {
-//VLFChannel::VLFChannel(int idx) : rawdata_file() {
+VLFChannel::VLFChannel(int idx) : rawdata_file() {
     ch_info.channel_id = idx;
 
     m_queue = ReaderWriterQueue<QByteArray>(512);
@@ -45,7 +43,6 @@ VLFChannel::VLFChannel(int idx)  {
     file_path_changed = true;
     rawdata_file_name = "";
     rawdata_file_path = "";
-//    rawdata_file_hd = FileHandler();
 }
 
 VLFChannel::~VLFChannel() {
@@ -151,7 +148,7 @@ void VLFChannel::slot_business_package_enqueued() {
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
         rawdata_file_path = rawdata_dir_path + "/" + rawdata_file_name;
-//        file_path_changed = true;
+        file_path_changed = true;
     }
 
     if (last_datetime.msecsTo(current_datetime) > (10000 - 20)) {
@@ -160,26 +157,25 @@ void VLFChannel::slot_business_package_enqueued() {
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
         rawdata_file_path = rawdata_dir_path + "/" + rawdata_file_name;
-//        file_path_changed = true;
+        file_path_changed = true;
     }
 
-    rawdata_file_hd.setFile(rawdata_file_path);
 
-//    if(file_path_changed){
-//        // 保证文件关闭
-//        if(rawdata_file.isOpen()){
-//            rawdata_file.close();
-//        }
-//        // 改文件名
-//        rawdata_file.setFileName(rawdata_file_path);
-//        // 重新打开文件
-//        if(!rawdata_file.open(QIODevice::Append)){
-//            qWarning() << "Failed to open file: " << rawdata_file_path;
-//        } else{
-//            qDebug() << "file open success";
-//        }
-//        file_path_changed = false;
-//    }
+    if(file_path_changed){
+        // 保证文件关闭
+        if(rawdata_file.isOpen()){
+            rawdata_file.close();
+        }
+        // 改文件名
+        rawdata_file.setFileName(rawdata_file_path);
+        // 重新打开文件
+        if(!rawdata_file.open(QIODevice::Append)){
+            qWarning() << "Failed to open file: " << rawdata_file_path;
+        } else{
+            qDebug() << "file open success";
+        }
+        file_path_changed = false;
+    }
 
 
 
@@ -197,9 +193,9 @@ void VLFChannel::slot_business_package_enqueued() {
         rawdata_buf.append(package.constData()+52, 1024);
     }else{ // buffer full
         // 写入文件并清空buf
-        rawdata_file_hd.writeToFile(rawdata_buf);
-        // 清空数据使用resize(0)，而不是clear，clear会导致缓冲区被释放
+        rawdata_file.write(rawdata_buf);
         rawdata_buf.resize(0);
+        // 清空数据使用resize(0)，而不是clear，clear会导致缓冲区被释放
         qDebug() << "write success";
     }
 
