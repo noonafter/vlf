@@ -161,7 +161,8 @@ void udp_modem_worker::udp_sig_tx() {
     last_time = QDateTime::currentDateTime().addSecs(-3600);
 
     int idx_package = 0;
-    while (!m_config->quitNow && idx_package < 1000) {
+    while (!m_config->quitNow) {
+//    while (!m_config->quitNow && idx_package < 1000) {
         qDebug() << "in loop";
         cnt_time = QDateTime::currentDateTime();
 

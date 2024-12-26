@@ -9,7 +9,8 @@ set (APP_SRC
     vlfchannel.h
     VLFReceiverConfig.cpp
     VLFReceiverConfig.h
-    )
+    FileHandler.cpp 
+    FileHandler.h)
 
 set(APP_HDRS
 
