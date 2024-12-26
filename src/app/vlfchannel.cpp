@@ -169,7 +169,7 @@ void VLFChannel::slot_business_package_enqueued() {
         // 改文件名
         rawdata_file.setFileName(rawdata_file_path);
         // 重新打开文件
-        if(!rawdata_file.open(QIODevice::WriteOnly)){
+        if(!rawdata_file.open(QIODevice::Append)){
             qWarning() << "Failed to open file: " << rawdata_file_path;
         } else{
             qDebug() << "file open success";
