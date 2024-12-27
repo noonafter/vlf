@@ -23,10 +23,14 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_file() {
     recv_count = 0;
     rawdata_buf.reserve(RAWDATA_BUF_SIZE);
     app_dir = QCoreApplication::applicationDirPath();
+    current_datetime = QDateTime();
     last_datetime = QDateTime();
-    file_path_changed = true;
+    start_datetime = QDateTime::currentDateTime().addDays(-1);
+    repeat_day = 1;
+    repeat_hour = 0;
+    repeat_minute = 0;
+    record_time = QTime(23,59,59,999);
     rawdata_file_name = "";
-    rawdata_file_path = "";
 }
 
 VLFChannel::VLFChannel(int idx) : rawdata_file() {
@@ -39,10 +43,14 @@ VLFChannel::VLFChannel(int idx) : rawdata_file() {
     recv_count = 0;
     rawdata_buf.reserve(RAWDATA_BUF_SIZE); // capacity = 2,097,152B
     app_dir = QCoreApplication::applicationDirPath();
+    current_datetime = QDateTime();
     last_datetime = QDateTime();
-    file_path_changed = true;
+    start_datetime = QDateTime::currentDateTime().addDays(-1);
+    repeat_day = 1;
+    repeat_hour = 0;
+    repeat_minute = 0;
+    record_time = QTime(23,59,59,999);
     rawdata_file_name = "";
-    rawdata_file_path = "";
 }
 
 VLFChannel::~VLFChannel() {
@@ -118,7 +126,7 @@ void VLFChannel::slot_business_package_enqueued() {
     current_datetime.setDate(cnt_date);
     current_datetime.setTime(cnt_time);
 
-    // 根据当前时间，得到文件夹路径，如果不存在则mkdir
+    // 根据包内信息，获取文件夹路径
     QString ch_id_s = QString::number(ch_info.channel_id);
     QString rawdata_dir_path = app_dir + "/rawdata/ch" + ch_id_s + "/" + cnt_date.toString("yyyyMMdd");
     QDir rawdata_dir(rawdata_dir_path);
@@ -131,80 +139,74 @@ void VLFChannel::slot_business_package_enqueued() {
             return;
         }
     }
+    QDir::setCurrent(rawdata_dir_path);
 
-
+    // 根据包内信息，获取文件名
     QString data_type_s = ch_info.data_type ? "R" : "C";
     QString save_type_s = ch_info.save_type ? "I32" : "I16";
     QString fsa_s = QString::number(ch_info.sample_rate);
-
-    // RAW_CH0_192000_RI32_BE_20241226_101930
-    QStringList rfn_list;
+    QStringList rfn_list;    // RAW_CH0_192000_RI32_BE_20241226_101930
     rfn_list << "RAW" << "CH"+ch_id_s << fsa_s << data_type_s + save_type_s << "BE" << "";
-
-    // 初始化last_datetime&写入文件名
+    // 更新last_datetime&文件名
     if (!last_datetime.isValid()) {
         last_datetime = current_datetime;
         roundSeconds(last_datetime);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
-        rawdata_file_path = rawdata_dir_path + "/" + rawdata_file_name;
-        file_path_changed = true;
     }
 
-    if (last_datetime.msecsTo(current_datetime) > (10000 - 20)) {
-        // 改变文件名
+    if (last_datetime.msecsTo(current_datetime) > (10000 - 50)) {
         last_datetime = last_datetime.addSecs(10);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
-        rawdata_file_path = rawdata_dir_path + "/" + rawdata_file_name;
-        file_path_changed = true;
     }
 
-
-    if(file_path_changed){
+    // 如果文件名改变，重新打开文件
+    if(rawdata_file.fileName()!=rawdata_file_name){
         // 保证文件关闭
         if(rawdata_file.isOpen()){
             rawdata_file.close();
         }
         // 改文件名
-        rawdata_file.setFileName(rawdata_file_path);
+        rawdata_file.setFileName(rawdata_file_name);
         // 重新打开文件
         if(!rawdata_file.open(QIODevice::Append)){
-            qWarning() << "Failed to open file: " << rawdata_file_path;
+            qWarning() << "Failed to open file: " << rawdata_file_name;
         } else{
-            qDebug() << "file open success";
+            qDebug() << "File open success: " << rawdata_file_name;
         }
-        file_path_changed = false;
     }
 
 
 
-//    // (current-start) % repeat < record, 则当前包加入缓存，这里其实只输入了current_datetime，这里决定是否写入
-//    int64_t elapsed_ms = start_datetime.msecsTo(current_datetime);
-//    int64_t repeat_ms = (repeat_day * 24 * 3600 + repeat_hour * 3600 + repeat_minute * 60) * 1000;
-//    int64_t record_ms = (record_time.hour() * 3600 + record_time.minute() * 60 + record_time.second()) * 1000;
-//    if(elapsed_ms % repeat_ms < record_ms){
-//
-//    }
+    // (current-start) % repeat < record, 则当前包加入缓存，这里其实只输入了current_datetime，这里决定是否写入
+    int64_t elapsed_ms = start_datetime.msecsTo(current_datetime);
+    int64_t repeat_ms = (repeat_day * 24 * 3600 + repeat_hour * 3600 + repeat_minute * 60) * 1000;
+    int64_t record_ms = (record_time.hour() * 3600 + record_time.minute() * 60 + record_time.second()) * 1000;
 
+//    qDebug() << "elapsed_ms: " << elapsed_ms;
+//    qDebug() << "repeat_ms: " << repeat_ms;
+//    qDebug() << "record_ms: " << record_ms;
+//    qDebug() << "elapsed_ms % repeat_ms < record_ms: " << (elapsed_ms % repeat_ms < record_ms);
 
     // 处理业务包数据
-    if(rawdata_buf.size() < RAWDATA_BUF_SIZE){
-        rawdata_buf.append(package.constData()+52, 1024);
-    }else{ // buffer full
-        // 写入文件并清空buf
-        rawdata_file.write(rawdata_buf);
-        rawdata_buf.resize(0);
-        // 清空数据使用resize(0)，而不是clear，clear会导致缓冲区被释放
-        qDebug() << "write success";
+    // 在记录时间内，进行记录
+    if (elapsed_ms % repeat_ms < record_ms) {
+        if (rawdata_buf.size() < RAWDATA_BUF_SIZE) {
+            rawdata_buf.append(package.constData() + 52, 1024);
+        } else { // buffer full
+            // 写入文件并清空buf
+            rawdata_file.write(rawdata_buf);
+            // 清空数据使用resize(0)，而不是clear，clear会导致缓冲区被释放
+            rawdata_buf.resize(0);
+            qDebug() << "write success";
+        }
     }
-
 
 
     recv_count++;
     if(!(recv_count%5000)){
         qDebug() << "drop_count:" << recv_count;
-        qDebug() << "rawdata_buf capacity:" << rawdata_buf.capacity();
     }
 
 }

@@ -163,7 +163,9 @@ void udp_modem_worker::udp_sig_tx() {
     int idx_package = 0;
     while (!m_config->quitNow) {
 //    while (!m_config->quitNow && idx_package < 1000) {
-        qDebug() << "in loop";
+       if(!(idx_package%5000)){
+           qDebug() << "tx idx_package: " << idx_package;
+       }
         cnt_time = QDateTime::currentDateTime();
 
         // 状态包

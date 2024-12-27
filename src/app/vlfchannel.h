@@ -52,15 +52,15 @@ private:
     // 时间间隔和时长，参考winradio接收机，startdate，starttime，repeat_datetime
 
 
-    QDateTime start_datetime;
     QDateTime current_datetime;
-
     QDateTime last_datetime;
 
+    QDateTime start_datetime;
     int repeat_day;
     int repeat_hour;
     int repeat_minute;
 
+    // 不超过一天
     QTime record_time;
 
     // 关于vlf通道对象中，file的写入逻辑（为了避免频繁打开和关闭文件）
@@ -69,9 +69,7 @@ private:
     // 写入的时候，如果文件有内容，则是追加字节，如果没有文件，则需要创建一个文件并写入，也方便后续追加
     QString app_dir;
     QFile rawdata_file;
-    bool file_path_changed;
     QString rawdata_file_name;
-    QString rawdata_file_path;
 
     void roundSeconds(QDateTime &dateTime);
 };
