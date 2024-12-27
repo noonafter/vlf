@@ -139,7 +139,8 @@ void VLFChannel::slot_business_package_enqueued() {
             return;
         }
     }
-    QDir::setCurrent(rawdata_dir_path);
+    // 由于有多个线程都要写，这里设置整个文件的路径，可能会有问题，后面写就用绝对路径
+//    QDir::setCurrent(rawdata_dir_path);
 
     // 根据包内信息，获取文件名
     QString data_type_s = ch_info.data_type ? "R" : "C";
@@ -162,17 +163,18 @@ void VLFChannel::slot_business_package_enqueued() {
     }
 
     // 如果文件名改变，重新打开文件
-    if(rawdata_file.fileName()!=rawdata_file_name){
+    QString rawdata_file_name_abs = rawdata_dir_path + "/" + rawdata_file_name;
+    if (rawdata_file.fileName() != rawdata_file_name_abs) {
         // 保证文件关闭
-        if(rawdata_file.isOpen()){
+        if (rawdata_file.isOpen()) {
             rawdata_file.close();
         }
         // 改文件名
-        rawdata_file.setFileName(rawdata_file_name);
+        rawdata_file.setFileName(rawdata_file_name_abs);
         // 重新打开文件
-        if(!rawdata_file.open(QIODevice::Append)){
+        if (!rawdata_file.open(QIODevice::Append)) {
             qWarning() << "Failed to open file: " << rawdata_file_name;
-        } else{
+        } else {
             qDebug() << "File open success: " << rawdata_file_name;
         }
     }
