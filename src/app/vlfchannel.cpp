@@ -49,6 +49,7 @@ VLFChannel::VLFChannel(int idx) : rawdata_file() {
     repeat_day = 1;
     repeat_hour = 0;
     repeat_minute = 0;
+    // 不能写QTime(24,0)
     record_time = QTime(23,59,59,999);
     rawdata_file_name = "";
 }
@@ -142,35 +143,34 @@ void VLFChannel::slot_business_package_enqueued() {
     // 由于有多个线程都要写，这里设置整个文件的路径，可能会有问题，后面写就用绝对路径
 //    QDir::setCurrent(rawdata_dir_path);
 
-    // 根据包内信息，获取文件名
+    // 根据包内信息，获取文件名（绝对路径）
     QString data_type_s = ch_info.data_type ? "R" : "C";
     QString save_type_s = ch_info.save_type ? "I32" : "I16";
     QString fsa_s = QString::number(ch_info.sample_rate);
     QStringList rfn_list;    // RAW_CH0_192000_RI32_BE_20241226_101930
     rfn_list << "RAW" << "CH"+ch_id_s << fsa_s << data_type_s + save_type_s << "BE" << "";
-    // 更新last_datetime&文件名
+    // 更新last_datetime&文件绝对路径
     if (!last_datetime.isValid()) {
         last_datetime = current_datetime;
         roundSeconds(last_datetime);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
-        rawdata_file_name = rfn_list.join("_");
+        rawdata_file_name = rawdata_dir_path + "/" + rfn_list.join("_");
     }
 
     if (last_datetime.msecsTo(current_datetime) > (10000 - 50)) {
         last_datetime = last_datetime.addSecs(10);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
-        rawdata_file_name = rfn_list.join("_");
+        rawdata_file_name = rawdata_dir_path + "/" + rfn_list.join("_");
     }
 
     // 如果文件名改变，重新打开文件
-    QString rawdata_file_name_abs = rawdata_dir_path + "/" + rawdata_file_name;
-    if (rawdata_file.fileName() != rawdata_file_name_abs) {
+    if (rawdata_file.fileName() != rawdata_file_name) {
         // 保证文件关闭
         if (rawdata_file.isOpen()) {
             rawdata_file.close();
         }
         // 改文件名
-        rawdata_file.setFileName(rawdata_file_name_abs);
+        rawdata_file.setFileName(rawdata_file_name);
         // 重新打开文件
         if (!rawdata_file.open(QIODevice::Append)) {
             qWarning() << "Failed to open file: " << rawdata_file_name;
@@ -186,11 +186,6 @@ void VLFChannel::slot_business_package_enqueued() {
     int64_t repeat_ms = (repeat_day * 24 * 3600 + repeat_hour * 3600 + repeat_minute * 60) * 1000;
     int64_t record_ms = (record_time.hour() * 3600 + record_time.minute() * 60 + record_time.second()) * 1000;
 
-//    qDebug() << "elapsed_ms: " << elapsed_ms;
-//    qDebug() << "repeat_ms: " << repeat_ms;
-//    qDebug() << "record_ms: " << record_ms;
-//    qDebug() << "elapsed_ms % repeat_ms < record_ms: " << (elapsed_ms % repeat_ms < record_ms);
-
     // 处理业务包数据
     // 在记录时间内，进行记录
     if (elapsed_ms % repeat_ms < record_ms) {
@@ -205,10 +200,9 @@ void VLFChannel::slot_business_package_enqueued() {
         }
     }
 
-
     recv_count++;
     if(!(recv_count%5000)){
-        qDebug() << "drop_count:" << recv_count;
+        qDebug() << "recv_count:" << recv_count;
     }
 
 }
