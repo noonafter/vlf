@@ -9,6 +9,7 @@
 #include <QDataStream>
 #include <QByteArray>
 #include <QDebug>
+#include <QDir>
 
 // 固定buf大小的writer，为了实现高效写入，当某一次写入数据会超出capacity时，自动丢掉溢出数据
 class BufferedWriter {
@@ -28,6 +29,19 @@ public:
         flushBuffer();
         if (m_file.isOpen()) {
             m_file.close();
+        }
+    }
+
+    void setDir(const QString& dirPath){
+        QDir rawdata_dir(dirPath);
+        if(!rawdata_dir.exists()){
+            qDebug() << "dir not exist: " << dirPath;
+            if (rawdata_dir.mkpath(dirPath)) {
+                qDebug() << "directories make success";
+            } else {
+                qDebug() << "directories make fail";
+                return;
+            }
         }
     }
 

@@ -130,16 +130,8 @@ void VLFChannel::slot_business_package_enqueued() {
     // 根据包内信息，获取文件夹路径
     QString ch_id_s = QString::number(ch_info.channel_id);
     QString rawdata_dir_path = app_dir + "/rawdata/ch" + ch_id_s + "/" + cnt_date.toString("yyyyMMdd");
-    QDir rawdata_dir(rawdata_dir_path);
-    if(!rawdata_dir.exists()){
-        qDebug() << "dir not exist: " << rawdata_dir_path;
-        if (rawdata_dir.mkpath(rawdata_dir_path)) {
-            qDebug() << "directories make success";
-        } else {
-            qDebug() << "directories make fail";
-            return;
-        }
-    }
+
+    rawdata_writer.setDir(rawdata_dir_path);
     // 由于有多个线程都要写，这里设置整个文件的路径，可能会有问题，后面写就用绝对路径
 //    QDir::setCurrent(rawdata_dir_path);
 
@@ -187,7 +179,7 @@ void VLFChannel::slot_business_package_enqueued() {
     if (rawdata_buf.size() < RAWDATA_BUF_SIZE) {
         rawdata_buf.append(package.constData() + 52, 1024);
     } else {
-//        qDebug() << "buf full, make use of 65536 samples";
+        qDebug() << "rawdata_buf full, process once";
 
 
         rawdata_buf.resize(0);
