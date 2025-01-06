@@ -146,19 +146,17 @@ void VLFChannel::slot_business_package_enqueued() {
         last_datetime = current_datetime;
         roundSeconds(last_datetime);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
-        rawdata_file_name = rawdata_dir_path + "/" + rfn_list.join("_");
+        rawdata_file_name = rfn_list.join("_");
     }
 
     if (last_datetime.msecsTo(current_datetime) > (10000 - 50)) {
         last_datetime = last_datetime.addSecs(10);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
-        rawdata_file_name = rawdata_dir_path + "/" + rfn_list.join("_");
+        rawdata_file_name = rfn_list.join("_");
     }
 
 //    // 如果文件名改变，重新打开文件
-    if (rawdata_writer.fileName() != rawdata_file_name) {
-        rawdata_writer.setFileName(rawdata_file_name);
-    }
+    rawdata_writer.setFile(rawdata_file_name);
 
 
     // (current-start) % repeat < record, 则当前包加入缓存，这里其实只输入了current_datetime，这里决定是否写入

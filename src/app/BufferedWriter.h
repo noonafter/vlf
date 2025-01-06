@@ -33,10 +33,10 @@ public:
     }
 
     void setDir(const QString& dirPath){
-        QDir rawdata_dir(dirPath);
-        if(!rawdata_dir.exists()){
+        m_dir = QDir(dirPath); // 移动赋值
+        if(!m_dir.exists()){
             qDebug() << "dir not exist: " << dirPath;
-            if (rawdata_dir.mkpath(dirPath)) {
+            if (m_dir.mkpath(dirPath)) {
                 qDebug() << "directories make success";
             } else {
                 qDebug() << "directories make fail";
@@ -46,12 +46,24 @@ public:
     }
 
     // 设置文件路径并打开文件
-    void setFileName(const QString& fileName) {
+    void setFile(const QString& fileName) {
+        QString fullPath;
+        if(m_dir.exists()){
+            fullPath = m_dir.absoluteFilePath(fileName);
+        } else {
+            qWarning() << "dir not exists";
+        }
+
+        // 如果文件名没变，且文件已经打开，则不需要改名字，也不需要打开文件
+        if (fullPath == m_file.fileName() && m_file.isOpen()) {
+            return;
+        }
+
         if (m_file.isOpen()) {
             m_file.close();  // 保证文件关闭
         }
 
-        m_file.setFileName(fileName);
+        m_file.setFileName(fullPath);
 
         if (!m_file.open(QIODevice::WriteOnly | QIODevice::Append)) {
             qDebug() << "Failed to open file:" << fileName;
@@ -138,6 +150,7 @@ public:
 
 private:
     QFile m_file;
+    QDir m_dir;
     QByteArray m_buffer;  // 缓存区
     QDataStream m_dataStream;  // 用于写入不同类型的数据
     int m_bufferSize;     // 缓冲区大小
