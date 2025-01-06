@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include "VLFReceiverConfig.h"
 #include "readerwriterqueue.h"
+#include "BufferedWriter.h"
 
 using namespace moodycamel;
 
@@ -49,6 +50,8 @@ private:
 
 
 
+
+
     // 时间间隔和时长，参考winradio接收机，startdate，starttime，repeat_datetime
 
 
@@ -68,8 +71,9 @@ private:
     // 但是写入的文件可能会变化，上一次还在写a文件，下一次可能需要换b文件写
     // 写入的时候，如果文件有内容，则是追加字节，如果没有文件，则需要创建一个文件并写入，也方便后续追加
     QString app_dir;
-    QFile rawdata_file;
     QString rawdata_file_name;
+    BufferedWriter rawdata_writer;
+
 
     void roundSeconds(QDateTime &dateTime);
 };

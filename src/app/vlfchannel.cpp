@@ -15,7 +15,7 @@
 // 2048个业务包数据，如果sample是rint32，可以存65536个sample
 #define RAWDATA_BUF_SIZE (2048*1024) // 2097152
 
-VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_file() {
+VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE) {
     m_queue = ReaderWriterQueue<QByteArray>(512);
     ch_info.open_state = true;
     last_channel_params = QByteArray(16, '\0');
@@ -33,7 +33,7 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_file() {
     rawdata_file_name = "";
 }
 
-VLFChannel::VLFChannel(int idx) : rawdata_file() {
+VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE) {
     ch_info.channel_id = idx;
 
     m_queue = ReaderWriterQueue<QByteArray>(512);
@@ -163,20 +163,9 @@ void VLFChannel::slot_business_package_enqueued() {
         rawdata_file_name = rawdata_dir_path + "/" + rfn_list.join("_");
     }
 
-    // 如果文件名改变，重新打开文件
-    if (rawdata_file.fileName() != rawdata_file_name) {
-        // 保证文件关闭
-        if (rawdata_file.isOpen()) {
-            rawdata_file.close();
-        }
-        // 改文件名
-        rawdata_file.setFileName(rawdata_file_name);
-        // 重新打开文件
-        if (!rawdata_file.open(QIODevice::Append)) {
-            qWarning() << "Failed to open file: " << rawdata_file_name;
-        } else {
-            qDebug() << "File open success: " << rawdata_file_name;
-        }
+//    // 如果文件名改变，重新打开文件
+    if (rawdata_writer.fileName() != rawdata_file_name) {
+        rawdata_writer.setFileName(rawdata_file_name);
     }
 
 
@@ -187,22 +176,15 @@ void VLFChannel::slot_business_package_enqueued() {
     int64_t record_ms = (record_time.hour() * 3600 + record_time.minute() * 60 + record_time.second()) * 1000;
 
     // 处理业务包数据
-    // 在记录时间内，进行记录&监测，非记录时间不工作。这一点先这么写，如果要求记录和监测分开，最好开两个buf。
+    // 在记录时间内，进行记录。记录和监测分开，rawdata_writer用来记录，rawdata_buf用于后续监测。
     if (elapsed_ms % repeat_ms < record_ms) {
-        if (rawdata_buf.size() < RAWDATA_BUF_SIZE) {
-            rawdata_buf.append(package.constData() + 52, 1024);
-        } else { // buffer full
-            // 写入文件并清空buf
-            rawdata_file.write(rawdata_buf);
-            // 清空数据使用resize(0)，而不是clear，clear会导致缓冲区被释放
-            rawdata_buf.resize(0);
-            qDebug() << "write success";
-        }
+        rawdata_writer.write(package.constData() + 52, 1024);
     }else{ // 超出记录时间，写入已有数据，清空buf
-        rawdata_file.write(rawdata_buf);
-        rawdata_buf.resize(0);
+        rawdata_writer.flushBuffer();
         qDebug() << "exceed record time, record stop";
     }
+
+    rawdata_buf.append(package.constData() + 52, 1024);
 
 
     recv_count++;
