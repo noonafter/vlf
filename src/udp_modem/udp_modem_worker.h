@@ -49,7 +49,6 @@ public:
 public slots:
     void udp_tx_business();
     void udp_tx_status();
-    void udp_sig_stop();
 
 private:
     udp_wave_config *m_config;

@@ -204,15 +204,14 @@ void udp_modem_worker::udp_tx_business() {
     uint8_t second,minute,hour;
 
     int idx_package = 0;
-    int num_package = fsa_ch[0] * 1 * 4 * 256 / 1000 / 1024;
+    int num_package = fsa_ch[0] * 1 * 4 * 256 / 1000 / 1024; // 需要跟随采样率重新计算
     while (idx_package < num_package) {
-//    while (!m_config->quitNow && idx_package < num_package) {
 
         QDateTime cnt_time = QDateTime::currentDateTime();
 
         if(!(package_count%7500)){
             qDebug() << "tx package_count: " << package_count;
-            qDebug() << cnt_time;
+            qDebug() << cnt_time.toString("yyyy-MM-dd hh:mm:ss");
         }
 
 
@@ -297,14 +296,7 @@ void udp_modem_worker::udp_tx_business() {
 
 
 
-
-
-
-
-//        QThread::msleep(1);
-
         idx_package++;
-
         package_count++;
     } // while end
 
@@ -336,9 +328,6 @@ void udp_modem_worker::setMConfig(udp_wave_config *mConfig) {
 
 }
 
-void udp_modem_worker::udp_sig_stop() {
-    qDebug() << "stop loop";
-}
 
 int udp_modem_worker::chx_generate_one_package_bfsk(bfsk_vlf_s *sig_gene_ch1,
                                                     bool &is_sig_chx, int &tx_sample_chx, int &init_delay_chx,
