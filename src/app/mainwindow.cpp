@@ -58,17 +58,21 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    for(int i = 0; i < CHANNEL_COUNT && ch_thread[i]; i++){
-        ch_thread[i]->exit();
-        ch_thread[i]->wait();
-    }
 
+    // 由于队列在消费者中，先停止生产者线程！一般应该将队列放在主线程中的，这样可以解耦双方，并且退出时更安全，随便先退谁都行，队列最后退出
     if (recv_thread) {
         // 将worker_thread的事件循环退出标志（quitNow）设为true
         recv_thread->exit();
         // 阻塞当前线程，等待finish()函数执行完毕，发出finished信号，处理延迟删除事件，清理线程资源
         recv_thread->wait();
     }
+
+    for(int i = 0; i < CHANNEL_COUNT && ch_thread[i]; i++){
+        ch_thread[i]->exit();
+        ch_thread[i]->wait();
+    }
+
+
 
     delete recv_config;
 

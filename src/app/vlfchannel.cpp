@@ -12,8 +12,8 @@
 #include <QCoreApplication>
 #include <QDir>
 
-// 2048个业务包数据，如果sample是rint32，可以存65536个sample
-#define RAWDATA_BUF_SIZE (2048*1024) // 2097152
+// 256个业务包数据，如果sample是rint32，可以存65536个sample
+#define RAWDATA_BUF_SIZE (256*1024) // 262144
 
 VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE) {
     m_queue = ReaderWriterQueue<QByteArray>(512);
@@ -41,7 +41,7 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE) {
     last_channel_params = QByteArray(16, '\0');
     last_udp_idx = 0;
     recv_count = 0;
-    rawdata_buf.reserve(RAWDATA_BUF_SIZE); // capacity = 2,097,152B
+    rawdata_buf.reserve(RAWDATA_BUF_SIZE); // capacity = 262,144B
     app_dir = QCoreApplication::applicationDirPath();
     current_datetime = QDateTime();
     last_datetime = QDateTime();
@@ -169,7 +169,6 @@ void VLFChannel::slot_business_package_enqueued() {
     }
 
 
-
     // (current-start) % repeat < record, 则当前包加入缓存，这里其实只输入了current_datetime，这里决定是否写入
     int64_t elapsed_ms = start_datetime.msecsTo(current_datetime);
     int64_t repeat_ms = (repeat_day * 24 * 3600 + repeat_hour * 3600 + repeat_minute * 60) * 1000;
@@ -184,7 +183,15 @@ void VLFChannel::slot_business_package_enqueued() {
         qDebug() << "exceed record time, record stop";
     }
 
-    rawdata_buf.append(package.constData() + 52, 1024);
+    // 进行监测
+    if (rawdata_buf.size() < RAWDATA_BUF_SIZE) {
+        rawdata_buf.append(package.constData() + 52, 1024);
+    } else {
+//        qDebug() << "buf full, make use of 65536 samples";
+
+
+        rawdata_buf.resize(0);
+    }
 
 
     recv_count++;

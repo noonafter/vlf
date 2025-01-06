@@ -10,7 +10,7 @@
 #include <QByteArray>
 #include <QDebug>
 
-// 固定buf大小的writer，为了实现高效写入，当某一次写入数据会导致buf溢出时，自动丢掉溢出数据
+// 固定buf大小的writer，为了实现高效写入，当某一次写入数据会超出capacity时，自动丢掉溢出数据
 class BufferedWriter {
 public:
     // 构造函数，不需要文件路径，初始化缓冲区
@@ -57,6 +57,7 @@ public:
         int spaceLeft = m_bufferSize - m_buffer.size();
         if(data.size() > spaceLeft){
             m_buffer.append(data.mid(0,spaceLeft));
+            qDebug() << "Append data while truncate " << data.size() - spaceLeft << "bytes";
         }else{
             m_buffer.append(data);  // 将数据追加到缓存
         }
@@ -75,7 +76,12 @@ public:
         }
 
         int spaceLeft = m_bufferSize - m_buffer.size();
-        m_buffer.append(s, len > spaceLeft ? spaceLeft : len);
+        if(len > spaceLeft){
+            m_buffer.append(s,spaceLeft);
+            qDebug() << "Append data while truncate " << len - spaceLeft << "bytes";
+        }else{
+            m_buffer.append(s,len);  // 将数据追加到缓存
+        }
         // 如果缓冲区已满，写入文件
         if (m_buffer.size() >= m_bufferSize) {
             flushBuffer();
