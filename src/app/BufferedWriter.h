@@ -32,6 +32,7 @@ public:
         }
     }
 
+    // 设置文件路径，如果文件夹不存在则创建
     void setDir(const QString& dirPath){
         m_dir = QDir(dirPath); // 移动赋值
         if(!m_dir.exists()){
@@ -45,7 +46,8 @@ public:
         }
     }
 
-    // 设置文件路径并打开文件
+    // 设置文件名并打开文件，如果文件名没改变且已经打开则直接返回
+    // 注意输入的文件名不包括路径
     void setFile(const QString& fileName) {
         QString fullPath;
         if(m_dir.exists()){
