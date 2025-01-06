@@ -47,7 +47,8 @@ public:
     void setMConfig(udp_wave_config *mConfig);
 
 public slots:
-    void udp_sig_tx();
+    void udp_tx_business();
+    void udp_tx_status();
     void udp_sig_stop();
 
 private:
@@ -67,6 +68,8 @@ private:
     QUdpSocket udp_send;
     QByteArray bytea;
     QDataStream dstream;
+
+    int package_count = 0;
 
 #ifdef UDP_LOCAL_BACKUP
     QFile *file;

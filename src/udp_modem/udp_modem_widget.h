@@ -12,6 +12,7 @@
 #include <QHostAddress>
 #include <QMessageBox>
 #include <QThread>
+#include <QTimer>
 #include "udp_modem_worker.h"
 #include "udp_wave_config.h"
 
@@ -53,6 +54,8 @@ public slots:
 
 private:
     Ui::udp_modem_widget *ui;
+    QTimer *bussiness_tx_timer;
+    QTimer *status_tx_timer;
     int num_channel;
     int num_vheader;
     int current_set_channel;
@@ -61,6 +64,7 @@ private:
     QThread *worker_thread;
     udp_modem_worker *sig_worker;
     udp_wave_config *m_config;
+
 
     // 根据类属性更新控件
     void updateTableWidgetBackground();

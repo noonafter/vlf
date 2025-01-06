@@ -76,9 +76,60 @@ udp_modem_worker::~udp_modem_worker() {
 #endif
 }
 
-void udp_modem_worker::udp_sig_tx() {
 
-    qDebug() << "udp_sig_tx";
+void udp_modem_worker::udp_tx_status() {
+
+    QDateTime cnt_time = QDateTime::currentDateTime();
+    QHostAddress dest_addr(m_config->udpConfig.dest_ip);
+    quint16 dest_port = m_config->udpConfig.dest_port;
+//    //对于udp socket来说，bind只对接收有用。这里udp_send只用于发送，因此，bind没有意义
+//    if(udp_send.bind(m_config->udpConfig.local_port)){
+//        qDebug() << "Bind success";
+//    }else {
+//        qDebug() << "Udp socket bind fail: " << udp_send.errorString();
+//    };
+
+// 产生状态包
+    if (hd_status.idx_pac == 0)
+        hd_status.idx_pac = 1;
+    hd_status.check_pac = (hd_status.idx_pac >> 0) ^ (hd_status.idx_pac >> 8) ^
+                          (hd_status.idx_pac >> 16) ^ (hd_status.idx_pac >> 24) & 0xFF;
+    hd_status.pac_len = 44;
+
+    // header
+    dstream << hd_status.idx_pac++
+            << hd_status.check_pac
+            << hd_status.version_stcp
+            << hd_status.control_trans
+            << hd_status.indicator_cache
+            << hd_status.ack_recv
+            << hd_status.app_type
+            << hd_status.pac_len
+            // 自定义数据头
+            << (uint8_t) 0x7e
+            << (uint8_t) 0xef
+            << (uint16_t) 0x0018
+            << (uint32_t) 0 // device state, 0:normal, 1:error
+            << (uint32_t) (cnt_time.toString("yyyyMMdd").toUInt())
+            << 30.5982f
+            << 114.3055f
+            << 0.0f
+            << (uint8_t) 1
+            << (uint8_t) 0
+            << (uint8_t) 0
+            << (uint8_t) 0;
+
+    // 发送状态包
+    udp_send.writeDatagram(bytea, dest_addr, dest_port);
+    bytea.clear();
+    dstream.device()->seek(0);
+
+}
+
+
+void udp_modem_worker::udp_tx_business() {
+
+//    qDebug() << "udp_tx_business";
 
 
 // 在次线程中不要写自己的控制开关，会有问题，控制开关应该由用户在主线程中控制
@@ -96,12 +147,7 @@ void udp_modem_worker::udp_sig_tx() {
 
     QHostAddress dest_addr(m_config->udpConfig.dest_ip);
     quint16 dest_port = m_config->udpConfig.dest_port;
-//    //对于udp socket来说，bind只对接收有用。这里udp_send只用于发送，因此，bind没有意义
-//    if(udp_send.bind(m_config->udpConfig.local_port)){
-//        qDebug() << "Bind success";
-//    }else {
-//        qDebug() << "Udp socket bind fail: " << udp_send.errorString();
-//    };
+
 
     QVector<WaveConfig> &wave_vec = m_config->wave_config_vec;
     QVector<int> &channel_vec = m_config->channelConfig.channels;
@@ -155,59 +201,21 @@ void udp_modem_worker::udp_sig_tx() {
 #endif
 
     // 业务包参数
-    QDateTime cnt_time, last_time;
     uint32_t mic_second;
     uint8_t second,minute,hour;
-    last_time = QDateTime::currentDateTime().addSecs(-3600);
 
     int idx_package = 0;
-    while (!m_config->quitNow) {
-//    while (!m_config->quitNow && idx_package < 1000) {
-       if(!(idx_package%5000)){
-           qDebug() << "tx idx_package: " << idx_package;
-       }
-        cnt_time = QDateTime::currentDateTime();
+    int num_package = fsa_ch[0] * 1 * 4 * 256 / 1000 / 1024;
+//    while (!m_config->quitNow) {
+    while (!m_config->quitNow && idx_package < num_package) {
 
-        // 状态包
-        if(last_time.secsTo(cnt_time) >= 5*60){
+        QDateTime cnt_time = QDateTime::currentDateTime();
 
-            // 产生状态包
-            if (hd_status.idx_pac == 0)
-                hd_status.idx_pac = 1;
-            hd_status.check_pac = (hd_status.idx_pac >> 0) ^ (hd_status.idx_pac >> 8) ^
-                                  (hd_status.idx_pac >> 16) ^ (hd_status.idx_pac >> 24) & 0xFF;
-            hd_status.pac_len = 44;
-
-                    // header
-            dstream << hd_status.idx_pac++
-                    << hd_status.check_pac
-                    << hd_status.version_stcp
-                    << hd_status.control_trans
-                    << hd_status.indicator_cache
-                    << hd_status.ack_recv
-                    << hd_status.app_type
-                    << hd_status.pac_len
-                    // 自定义数据头
-                    << (uint8_t) 0x7e
-                    << (uint8_t) 0xef
-                    << (uint16_t) 0x0018
-                    << (uint32_t) 0 // device state, 0:normal, 1:error
-                    << (uint32_t) (cnt_time.toString("yyyyMMdd").toUInt())
-                    << 30.5982f
-                    << 114.3055f
-                    << 0.0f
-                    << (uint8_t) 1
-                    << (uint8_t) 0
-                    << (uint8_t) 0
-                    << (uint8_t) 0;
-
-            // 发送状态包
-            udp_send.writeDatagram(bytea, dest_addr, dest_port);
-            bytea.clear();
-            dstream.device()->seek(0);
-
-            last_time = cnt_time;
+        if(!(package_count%7500)){
+            qDebug() << "tx package_count: " << package_count;
+            qDebug() << cnt_time;
         }
+
 
         // 业务包
         if (hd_business.idx_pac == 0)
@@ -297,6 +305,8 @@ void udp_modem_worker::udp_sig_tx() {
 //        QThread::msleep(1);
 
         idx_package++;
+
+        package_count++;
     } // while end
 
     for (int i = 0; i < ch_size; i++) {

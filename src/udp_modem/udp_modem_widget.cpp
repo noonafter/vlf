@@ -7,6 +7,8 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "udp_config.json";
     m_config = new udp_wave_config(file_name);
+    bussiness_tx_timer = new QTimer(this);
+    status_tx_timer = new QTimer(this);
 
     ui->setupUi(this);
     ui->label_sample_rate->setStyleSheet("color: red;");
@@ -95,14 +97,23 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
         ui->pushButton_start->setEnabled(false);
         ui->pushButton_stop->setEnabled(true);
         m_config->quitNow = false;
+        bussiness_tx_timer->start(256); // 256ms : 192 business package
+        status_tx_timer->start(300000);
     });
     // 队列连接
-    connect(ui->pushButton_start, &QPushButton::clicked, sig_worker, &udp_modem_worker::udp_sig_tx);
+//    connect(ui->pushButton_start, &QPushButton::clicked, sig_worker, &udp_modem_worker::udp_tx_business);
     connect(ui->pushButton_stop, &QPushButton::clicked, this, [=](){
         ui->pushButton_stop->setEnabled(false);
         ui->pushButton_start->setEnabled(true);
         m_config->quitNow = true;
+        bussiness_tx_timer->stop();
+        status_tx_timer->stop();
     });
+
+    connect(bussiness_tx_timer, &QTimer::timeout, sig_worker, &udp_modem_worker::udp_tx_business);
+    connect(status_tx_timer, &QTimer::timeout, sig_worker, &udp_modem_worker::udp_tx_status);
+
+
 
     // freq set lock
     connect(ui->checkBox_freqset, &QCheckBox::stateChanged, ui->doubleSpinBox_carrier_freq,
