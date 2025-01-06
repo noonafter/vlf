@@ -15,12 +15,10 @@
 udp_wave_config::udp_wave_config(QString file_path) {
 
     configPath = file_path;
-    quitNow = true;
 
 }
 
 udp_wave_config::~udp_wave_config() {
-    quitNow = true;
 }
 
 QString udp_wave_config::getLocalIPAddress() {
@@ -199,10 +197,6 @@ QJsonObject udp_wave_config::writeNoiseConfig() const {
     return obj;
 }
 
-void udp_wave_config::quit() {
-    quitNow = true;
-
-}
 
 
 

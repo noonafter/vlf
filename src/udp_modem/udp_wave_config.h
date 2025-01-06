@@ -60,7 +60,6 @@ public:
 
     void quit();
 
-    bool quitNow;
     QString configPath;
     UdpConfig udpConfig;
     ChannelConfig channelConfig;

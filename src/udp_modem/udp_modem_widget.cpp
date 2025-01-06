@@ -96,7 +96,6 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     connect(ui->pushButton_start, &QPushButton::clicked, this,[=](){
         ui->pushButton_start->setEnabled(false);
         ui->pushButton_stop->setEnabled(true);
-        m_config->quitNow = false;
         bussiness_tx_timer->start(256); // 256ms : 192 business package
         status_tx_timer->start(300000);
     });
@@ -105,7 +104,6 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     connect(ui->pushButton_stop, &QPushButton::clicked, this, [=](){
         ui->pushButton_stop->setEnabled(false);
         ui->pushButton_start->setEnabled(true);
-        m_config->quitNow = true;
         bussiness_tx_timer->stop();
         status_tx_timer->stop();
     });
@@ -124,8 +122,6 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
 udp_modem_widget::~udp_modem_widget() {
 
     if(m_config){
-        // 通知停止发送
-        m_config->quit();
         // 保持配置到json文件
         m_config->saveConfig();
     }

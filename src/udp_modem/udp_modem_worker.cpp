@@ -131,7 +131,6 @@ void udp_modem_worker::udp_tx_business() {
 
 //    qDebug() << "udp_tx_business";
 
-
 // 在次线程中不要写自己的控制开关，会有问题，控制开关应该由用户在主线程中控制
 // 按下start按钮同时，还没执行到这行，这时按下stop，再执行下面这行，会覆盖掉quitNow，进入while
 // 而这时只有start按钮能用，再次点击，会触发另一个udp_sig_tx的事件加入事件队列，但由于线程卡在前面的while，这个事件不会被处理
@@ -206,8 +205,8 @@ void udp_modem_worker::udp_tx_business() {
 
     int idx_package = 0;
     int num_package = fsa_ch[0] * 1 * 4 * 256 / 1000 / 1024;
-//    while (!m_config->quitNow) {
-    while (!m_config->quitNow && idx_package < num_package) {
+    while (idx_package < num_package) {
+//    while (!m_config->quitNow && idx_package < num_package) {
 
         QDateTime cnt_time = QDateTime::currentDateTime();
 
