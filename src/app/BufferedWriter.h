@@ -62,6 +62,7 @@ public:
         }
 
         if (m_file.isOpen()) {
+            flushBuffer(); // 文件名改变了，前一个文件可能还有数据在buffer中
             m_file.close();  // 保证文件关闭
         }
 
@@ -141,7 +142,7 @@ public:
         m_dataStream << value;  // 使用 QDataStream 写入 float 数据
     }
 
-
+private:
     // 刷新缓冲区
     void flushBuffer() {
         if (!m_buffer.isEmpty()) {

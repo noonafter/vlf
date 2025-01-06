@@ -169,8 +169,7 @@ void VLFChannel::slot_business_package_enqueued() {
     if (elapsed_ms % repeat_ms < record_ms) {
         rawdata_writer.write(package.constData() + 52, 1024);
     }else{ // 超出记录时间，写入已有数据，清空buf
-        rawdata_writer.flushBuffer();
-        qDebug() << "exceed record time, record stop";
+        qDebug() << "not in record time, record stop";
     }
 
     // 进行监测
