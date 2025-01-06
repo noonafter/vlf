@@ -187,7 +187,7 @@ void VLFChannel::slot_business_package_enqueued() {
     int64_t record_ms = (record_time.hour() * 3600 + record_time.minute() * 60 + record_time.second()) * 1000;
 
     // 处理业务包数据
-    // 在记录时间内，进行记录
+    // 在记录时间内，进行记录&监测，非记录时间不工作。这一点先这么写，如果要求记录和监测分开，最好开两个buf。
     if (elapsed_ms % repeat_ms < record_ms) {
         if (rawdata_buf.size() < RAWDATA_BUF_SIZE) {
             rawdata_buf.append(package.constData() + 52, 1024);
@@ -198,7 +198,12 @@ void VLFChannel::slot_business_package_enqueued() {
             rawdata_buf.resize(0);
             qDebug() << "write success";
         }
+    }else{ // 超出记录时间，写入已有数据，清空buf
+        rawdata_file.write(rawdata_buf);
+        rawdata_buf.resize(0);
+        qDebug() << "exceed record time, record stop";
     }
+
 
     recv_count++;
     if(!(recv_count%5000)){

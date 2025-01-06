@@ -16,8 +16,8 @@ set(APP_HDRS
     mainwindow.h
     vlfabstractreceiver.h
     VLFUdpReceiver.h
-
-    )
+    BufferedWriter.h
+        )
 
 set(APP_UIS
     mainwindow.ui
