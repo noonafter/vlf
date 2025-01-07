@@ -86,7 +86,7 @@ public:
         int spaceLeft = m_bufferSize - m_buffer.size();
         if(data.size() > spaceLeft){
             m_buffer.append(data.mid(0,spaceLeft));
-            qDebug() << "Append data while truncate " << data.size() - spaceLeft << "bytes";
+            qWarning() << "Append data while truncate " << data.size() - spaceLeft << "bytes";
         }else{
             m_buffer.append(data);  // 将数据追加到缓存
         }
