@@ -10,6 +10,8 @@
 #include "VLFReceiverConfig.h"
 #include "readerwriterqueue.h"
 #include "BufferedWriter.h"
+#include <complex>
+#include "liquid.h"
 
 using namespace moodycamel;
 
@@ -73,6 +75,11 @@ private:
     QString app_dir;
     QString rawdata_file_name;
     BufferedWriter rawdata_writer;
+
+    int num_ch_chlz0;
+    int filter_len_chlz0;
+    firpfbch_crcf chlz0;
+
 
 
     void roundSeconds(QDateTime &dateTime);

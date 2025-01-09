@@ -1,0 +1,100 @@
+# base configuration
+image: debian
+stages: [build, test]
+before_script:
+  - apt-get -qq update
+  - apt-get -qq install -y --no-install-recommends automake autoconf gcc g++ gcovr make valgrind time curl
+
+# build from scratch
+compile:
+  stage: build
+  script:
+    - ./bootstrap.sh
+    - ./configure
+    - make -j4
+  artifacts: # save output objects for test stages
+    paths: [makefile, configure, config.h, config.h.in]
+
+# test installation and linking appropriately
+install:
+  stage: test
+  script:
+    - make -j4
+    - make install
+    - ldconfig
+    - make check-link
+
+# compile and run benchmark program
+bench:
+  stage: test
+  script:
+    - make -j4 bench
+  artifacts:
+    paths: [benchmark.json]
+
+# run all test programs
+check:
+  stage: test
+  script:
+    - ./configure
+    - make -j4 check
+  artifacts:
+    paths: [autotest.json]
+
+# build from scratch
+coverage:
+  stage: test
+  script:
+    - make distclean
+    - ./bootstrap.sh
+    - ./configure --enable-coverage
+    - make -j4 coverage
+  coverage: '/lines: \d+\.\d+%/'
+  artifacts:
+    paths: [coverage.out]
+
+# compile and run documenation checks (e.g. example code in README.md)
+check-doc:
+  stage: test
+  script:
+    - make check-doc
+
+# compile and run all example programs, timing how long each takes to run
+examples:
+  stage: test
+  script:
+    - make -j4 examples
+    - echo '' > time.txt
+    - ls examples/*_example | sed -E "s#(.*)#echo '\1' >> time.txt; { time -p ./\1 ; } 2>> time.txt#g" > run_examples.sh
+    - /bin/sh run_examples.sh
+  artifacts:
+    paths: [run_examples.sh, time.txt]
+
+# compile and run all autotest programs with valgrind
+autotest-memcheck:
+  stage: test
+  script:
+    - make -j4 xautotest
+    - mkdir valgrind
+    - ./scripts/valgrind_eval.py -output valgrind -test 881
+  artifacts:
+    paths: [valgrind/*]
+
+# build from scratch
+coverage:
+  stage: test
+  script:
+    - make distclean
+    - ./bootstrap.sh
+    - ./configure --enable-coverage
+    - make -j4 coverage
+    #- curl -Os http://cli.codecov.io/latest/linux/codecov
+    #- chmod +x codecov
+    #- ./codecov --version
+    #- ./codecov upload-process -t $CODECOV_TOKEN --git-service gitlab --slug jgaeddert/liquid-dsp
+    - bash <(curl -s https://codecov.io/bash)
+
+  coverage: '/lines: \d+\.\d+%/'
+  artifacts:
+    paths: [coverage.out]
+

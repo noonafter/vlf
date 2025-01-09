@@ -39,5 +39,6 @@ target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::Sql
         ${QT_VERSION_BASE}::PrintSupport
         ${QT_VERSION_BASE}::Network
+        liquid
 
         )
