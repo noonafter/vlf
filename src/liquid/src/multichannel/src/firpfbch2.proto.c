@@ -291,6 +291,12 @@ int FIRPFBCH2(_execute_analyzer)(FIRPFBCH2() _q,
     // load buffers in blocks of num_channels/2 starting
     // in the middle of the filter bank and moving in the
     // negative direction
+    // flag初始化为0，因此，开始从M/2-1的地方开始推，依次往上推到0，下一次从M-1开始推，推到M/2
+    // 这里与论文中的蛇形移动的操作不一样：
+    // 论文中数据每次添加的索引都是M/2-1到0，但推之前需要将之前数据进行一次蛇形移动
+    // 这里数据每次添加的索引会在M/2-1和M-1之间切换，window的push会横向推动一次，到达与蛇形移动完全等价的效果。
+    //
+    // 但是要注意的是，蛇形移动方法后续还需要配合循环移位，来补偿由于半数抽取导致的相位旋转exp（j*pi*k*n）（fft输入循环移位，结果会多一个相位，正好抵消掉）
     unsigned int base_index = _q->flag ? _q->M : _q->M2;
     for (i=0; i<_q->M2; i++) {
         // push sample into buffer at filter index
@@ -311,9 +317,8 @@ int FIRPFBCH2(_execute_analyzer)(FIRPFBCH2() _q,
     // execute IFFT, store result in buffer 'x'
     FFT_EXECUTE(_q->ifft);
 
-    // scale result by 1/num_channels (C transform)
-    for (i=0; i<_q->M; i++)
-        _y[i] = _q->x[i] / (float)(_q->M);
+    // move to output array
+    memmove(_y, _q->x, _q->M*sizeof(TO));
 
     // update flag
     _q->flag = 1 - _q->flag;

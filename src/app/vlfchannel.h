@@ -13,6 +13,8 @@
 #include <complex>
 #include "liquid.h"
 
+#define NUM_CHLZ1 (5)
+
 using namespace moodycamel;
 
 class VLFChannel : public QObject {
@@ -77,8 +79,14 @@ private:
     BufferedWriter rawdata_writer;
 
     int num_ch_chlz0;
-    int filter_len_chlz0;
-    firpfbch_crcf chlz0;
+    int dec_factor_chlz0;
+    firpfbch2_crcf chlz0;
+
+    int num_ch_chlz1;
+    int dec_factor_chlz1;
+    firpfbch2_crcf chlz1[NUM_CHLZ1];
+    cbuffercf chlz1_inbuf[NUM_CHLZ1];
+    QVector<cbuffercf> chlz1_outbuf;
 
 
 

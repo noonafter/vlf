@@ -17,6 +17,7 @@ set(APP_HDRS
     vlfabstractreceiver.h
     VLFUdpReceiver.h
     BufferedWriter.h
+    fdacoefs.h
         )
 
 set(APP_UIS

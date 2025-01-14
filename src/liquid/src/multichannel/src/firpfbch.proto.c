@@ -106,6 +106,7 @@ FIRPFBCH() FIRPFBCH(_create)(int          _type,
     TC h_sub[h_sub_len];
     for (i=0; i<q->num_channels; i++) {
         // sub-sample prototype filter, loading coefficients in reverse order
+        // h(开始索引0，间隔M，长度h_sub_len)是第0个子filter的系数，倒序之后放在dotprod中，方便用点积实现filter
         for (n=0; n<h_sub_len; n++) {
             h_sub[h_sub_len-n-1] = q->h[i + n*(q->num_channels)];
         }
@@ -337,9 +338,11 @@ int FIRPFBCH(_analyzer_push)(FIRPFBCH() _q,
                              TI         _x)
 {
     // push sample into filter
+    // filter_index初始化为_q->num_channels-1，即数据从最后一个通道开始往上放
     WINDOW(_push)(_q->w[_q->filter_index], _x);
 
     // decrement filter index
+    // 使用 (x+M-1) % M完成索引减1，同时避免负数参与取余/循环计算，可以推广到(x+M-i) % M
     _q->filter_index = (_q->filter_index + _q->num_channels - 1) % _q->num_channels;
     return LIQUID_OK;
 }
@@ -366,6 +369,7 @@ int FIRPFBCH(_analyzer_run)(FIRPFBCH()   _q,
         WINDOW(_read)(_q->w[index], &r);
 
         // compute dot product
+        // 倒过来放dotprod的结果，比如第0个dotprod的结果放在fft缓存的最后，这样fft的结果就是M*ifft*相位旋转
         DOTPROD(_execute)(_q->dp[i], r, &_q->X[_q->num_channels-i-1]);
     }
 
