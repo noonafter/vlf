@@ -30,4 +30,14 @@ add_library(liquid
 # 设置头文件路径
 target_include_directories(liquid PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${FFTW3_PATH}
+        )
+
+target_link_directories(liquid PUBLIC
+        ${FFTW3_PATH}
+)
+
+target_link_libraries(liquid
+        libfftw3f-3
+)
