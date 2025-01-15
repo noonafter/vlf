@@ -17,10 +17,12 @@
 
 // 256个业务包数据，如果sample是rint32，可以存65536个sample
 #define RAWDATA_BUF_SIZE (256*1024) // 262144
+#define NUM_CHLZA (5)
 #define NUM_CH_SUB (334)
+#define MAX_FFTSIZE_SUBCH (512)
 
-VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE),
-                                          chlz1_outbuf(NUM_CH_SUB) {
+VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZA),
+                                          chlzb(NUM_CHLZA), fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB) {
     m_queue = ReaderWriterQueue<QByteArray>(512);
     ch_info.open_state = true;
     last_channel_params = QByteArray(16, '\0');
@@ -37,24 +39,26 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDAT
     record_time = QTime(23, 59, 59, 999);
     rawdata_file_name = "";
 
-    num_ch_chlz0 = 16;
-    dec_factor_chlz0 = 8;
+    num_ch_chlza = 16;
+    dec_factor_chlza = 8;
     //    fir lowpass kaiser 192000 6000 6900 42
-    chlz0 = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlz0, hh0_len / num_ch_chlz0 / 2, hh0);
+    chlza_inbuf = cbuffercf_create_max(256, dec_factor_chlza);
+    chlza = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlza, hh0_len / num_ch_chlza / 2, hh0);
 
-    num_ch_chlz1 = 160;
-    dec_factor_chlz1 = 80;
+    num_ch_chlzb = 160;
+    dec_factor_chlzb = 80;
     //    fir lowpass 24000 138 150 45
-    for (int i = 0; i < NUM_CHLZ1; i++) {
-        chlz1[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlz1, hh1_len / num_ch_chlz1 / 2, hh1);
-        chlz1_inbuf[i] = cbuffercf_create_max(dec_factor_chlz1 * 2, dec_factor_chlz1);
+    for (int i = 0; i < NUM_CHLZA; i++) {
+        chlzb_inbuf[i] = cbuffercf_create_max(dec_factor_chlzb * 2, dec_factor_chlzb);
+        chlzb[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlzb, hh1_len / num_ch_chlzb / 2, hh1);
     }
     for (int i = 0; i < NUM_CH_SUB; i++) {
-        chlz1_outbuf[i] = cbuffercf_create(512);
+        fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
     }
 }
 
-VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlz1_outbuf(NUM_CH_SUB) {
+VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZA), chlzb(NUM_CHLZA),
+                                  fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB) {
     ch_info.channel_id = idx;
 
     m_queue = ReaderWriterQueue<QByteArray>(512);
@@ -74,32 +78,34 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlz1_outbuf
     record_time = QTime(23, 59, 59, 999);
     rawdata_file_name = "";
 
-    num_ch_chlz0 = 16;
-    dec_factor_chlz0 = 8;
+    num_ch_chlza = 16;
+    dec_factor_chlza = 8;
 //    fir lowpass kaiser 192000 6000 6900 42
-    chlz0 = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlz0, hh0_len / num_ch_chlz0 / 2, hh0);
+    chlza_inbuf = cbuffercf_create_max(256, dec_factor_chlza);
+    chlza = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlza, hh0_len / num_ch_chlza / 2, hh0);
 
-    num_ch_chlz1 = 160;
-    dec_factor_chlz1 = 80;
+    num_ch_chlzb = 160;
+    dec_factor_chlzb = 80;
     //    fir lowpass 24000 138 150 45
-    for (int i = 0; i < NUM_CHLZ1; i++) {
-        chlz1[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlz1, hh1_len / num_ch_chlz1 / 2, hh1);
-        chlz1_inbuf[i] = cbuffercf_create_max(dec_factor_chlz1 * 2, dec_factor_chlz1);
+    for (int i = 0; i < NUM_CHLZA; i++) {
+        chlzb[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlzb, hh1_len / num_ch_chlzb / 2, hh1);
+        chlzb_inbuf[i] = cbuffercf_create_max(dec_factor_chlzb * 2, dec_factor_chlzb);
     }
     for (int i = 0; i < NUM_CH_SUB; i++) {
-        chlz1_outbuf[i] = cbuffercf_create(512);
+        fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
     }
+
 }
 
 VLFChannel::~VLFChannel() {
 
-    firpfbch2_crcf_destroy(chlz0);
-    for (int i = 0; i < NUM_CHLZ1; i++) {
-        firpfbch2_crcf_destroy(chlz1[i]);
-        cbuffercf_destroy(chlz1_inbuf[i]);
+    firpfbch2_crcf_destroy(chlza);
+    for (int i = 0; i < NUM_CHLZA; i++) {
+        firpfbch2_crcf_destroy(chlzb[i]);
+        cbuffercf_destroy(chlzb_inbuf[i]);
     }
     for (int i = 0; i < NUM_CH_SUB; i++) {
-        cbuffercf_destroy(chlz1_outbuf[i]);
+        cbuffercf_destroy(fft_inbuf[i]);
     }
 
     qDebug() << "id is " << QThread::currentThreadId();
@@ -233,47 +239,105 @@ void VLFChannel::slot_business_package_enqueued() {
 
     // 尝试不缓存，收到1包1024字节，256sample即进行处理
     // 1. 将数据转为complex<float>
-    std::complex<float> chlz0_in[256];
-    std::complex<float> chlz0_out_tmp[num_ch_chlz0];
+    std::complex<float> pack_data_cplx[256];
     for (int i = 0; i < 256; i++) {
         int32_t tmp = qToBigEndian(*reinterpret_cast<const int32_t *>((pack_data.mid(4 * i, 4).constData())));
-        chlz0_in[i] = (float) (tmp * 1.0 / 536870912.0); // 1<<29
+        pack_data_cplx[i] = (float) (tmp * 1.0 / 536870912.0); // 1<<29
     }
+    cbuffercf_write(chlza_inbuf, pack_data_cplx, 256);
 
-    // 2. 经过第一级channelizer，分num_ch_chlz0=16个通道，只有1,2,3,4,5号通道需要进一步处理。
-    // 每次输入dec_factor_chlz0=8个点，输出num_ch_chlz0=16个点。
-    for (int i = 0; i < 256 / dec_factor_chlz0; i++) {
-        firpfbch2_crcf_execute(chlz0, chlz0_in + i * dec_factor_chlz0, chlz0_out_tmp);
-        for (int j = 0; j < NUM_CHLZ1; j++) {
-            cbuffercf_push(chlz1_inbuf[j], chlz0_out_tmp[1 + j]);
+    // 2. 经过第一级channelizer，输入192KHz，输出24KHz
+    // 每次输入8个点，输出16个点。共执行32次，每个通道32点
+    unsigned int num_read;
+    std::complex<float> *chlza_in_tmp;
+    std::complex<float> chlza_out_tmp[num_ch_chlza];
+    while (cbuffercf_size(chlza_inbuf) >= dec_factor_chlza) {
+        // 读取输入，8个sample
+        cbuffercf_read(chlza_inbuf, dec_factor_chlza, &chlza_in_tmp, &num_read);
+
+        // 计算结果，16个sample
+        firpfbch2_crcf_execute(chlza, chlza_in_tmp, chlza_out_tmp);
+
+        // 结果推送，只处理1,2,3,4,5号通道
+        for (int i = 0; i < NUM_CHLZA; i++){
+            cbuffercf_push(chlzb_inbuf[i], chlza_out_tmp[1 + i]);
         }
+
+        //更新
+        cbuffercf_release(chlza_inbuf, dec_factor_chlza);
     }
 
     // 3. 经过第二级channelizer（共5个），
-    // 每个chlz1分num_ch_chlz1=160个通道，每次输入dec_factor_chlz1=80个点（第一级每次只给了32个点），输出num_ch_chlz1=160个点。
-    unsigned int num_read;
-    std::complex<float> *chlz1_in_tmp;
-    std::complex<float> chlz1_out_tmp[num_ch_chlz1];
-    // 处理chlz1[0]
-    if (cbuffercf_size(chlz1_inbuf[0]) >= dec_factor_chlz1) {
+    // 每个chlza分num_ch_chlzb=160个通道，每次输入dec_factor_chlz1=80个点（第一级每次只给了32个点），输出num_ch_chlzb=160个点。
+    std::complex<float> *chlzb_in_tmp;
+    std::complex<float> chlzb_out_tmp[num_ch_chlzb];
+    int idx_subch=0;
+    // 处理chlzb[0]
+    while (cbuffercf_size(chlzb_inbuf[0]) >= dec_factor_chlzb) {
         // 读取输入，80个sample
-        cbuffercf_read(chlz1_inbuf[0], dec_factor_chlz1, &chlz1_in_tmp, &num_read);
+        cbuffercf_read(chlzb_inbuf[0], dec_factor_chlzb, &chlzb_in_tmp, &num_read);
 
-        // 执行第二级channelizer，得到结果，160个sample
-        firpfbch2_crcf_execute(chlz1[0], chlz1_in_tmp, chlz1_out_tmp);
+        // 计算结果，160个sample
+        firpfbch2_crcf_execute(chlzb[0], chlzb_in_tmp, chlzb_out_tmp);
 
-        // buf0-12放入sample147-159
-        int i=0;
-        for(int idx=0;idx<13;idx++,i++){
-            cbuffercf_push(chlz1_outbuf[i], chlz1_out_tmp[147 + idx]);
+        // fft_inbuf[0-12]放入sample[147-159]
+        for (int i = 0; i < 13; i++) {
+            cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[147 + i]);
         }
-        // buf13-53放入sample0-40
-        for(int idx=0;idx<41;idx++,i++){
-            cbuffercf_push(chlz1_outbuf[i], chlz1_out_tmp[idx]);
+        // fft_inbuf[13-53]放入sample[0-40]
+        for (int i = 0; i < 41; i++) {
+            cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[i]);
         }
-
         // 使用完毕
-        cbuffercf_release(chlz1_inbuf[0], dec_factor_chlz1);
+        cbuffercf_release(chlzb_inbuf[0], dec_factor_chlzb);
+    }
+
+    // 处理chlzb[1-3]
+    for (int idx_chlzb = 1; idx_chlzb < NUM_CHLZA - 1; idx_chlzb++) {
+        while (cbuffercf_size(chlzb_inbuf[idx_chlzb]) >= dec_factor_chlzb) {
+            // 读取输入，80个sample
+            cbuffercf_read(chlzb_inbuf[idx_chlzb], dec_factor_chlzb, &chlzb_in_tmp, &num_read);
+
+            // 计算结果，160个sample
+            firpfbch2_crcf_execute(chlzb[idx_chlzb], chlzb_in_tmp, chlzb_out_tmp);
+
+            // fft_inbuf[54-92]放入sample[121-159]
+            for (int i = 0; i < 39; i++) {
+                cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[121 + i]);
+            }
+            // fft_inbuf[93-133]放入sample[0-40]
+            for (int i = 0; i < 41; i++) {
+                cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[i]);
+            }
+            // 使用完毕
+            cbuffercf_release(chlzb_inbuf[idx_chlzb], dec_factor_chlzb);
+        }
+    }
+
+    // 处理chlzb[4]
+    while (cbuffercf_size(chlzb_inbuf[4]) >= dec_factor_chlzb) {
+        // 读取输入，80个sample
+        cbuffercf_read(chlzb_inbuf[4], dec_factor_chlzb, &chlzb_in_tmp, &num_read);
+
+        // 计算结果，160个sample
+        firpfbch2_crcf_execute(chlzb[4], chlzb_in_tmp, chlzb_out_tmp);
+
+        // fft_inbuf[54-92]放入sample[121-159]
+        for (int i = 0; i < 39; i++) {
+            cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[121 + i]);
+        }
+        // fft_inbuf[333]放入sample[0]
+        cbuffercf_push(fft_inbuf[idx_subch++], chlzb_out_tmp[0]);
+        // 使用完毕
+        cbuffercf_release(chlzb_inbuf[4], dec_factor_chlzb);
+    }
+
+    // 4.如果buf满，执行fft
+    int fftsize_subch = 512;
+    if(cbuffercf_size(fft_inbuf[0]) >= fftsize_subch){
+
+
+        cbuffercf_release(fft_inbuf[0], fftsize_subch);
     }
 
 
