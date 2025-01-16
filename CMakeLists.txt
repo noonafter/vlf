@@ -36,8 +36,7 @@ IF(UNIX AND NOT APPLE)
 ELSEIF(WIN32)
 	set(QT_PATH D:/Qt/Qt5.14.2/5.14.2/mingw73_64)
 ENDIF()
-set(FFTW3_PATH ${CMAKE_SOURCE_DIR}/src/fftw-3.3.5-dll64)
-list(APPEND CMAKE_PREFIX_PATH ${QT_PATH} ${FFTW3_PATH})
+list(APPEND CMAKE_PREFIX_PATH ${QT_PATH})
 message(STATUS "Set CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 set(QT_VERSION_BASE "Qt5")
@@ -58,7 +57,10 @@ find_package(${QT_VERSION_BASE} COMPONENTS REQUIRED
 
 message(STATUS "Found Qt version: ${Qt5Core_VERSION_STRING}")
 
-
+# fftw3
+set(FFTW3_PATH ${CMAKE_SOURCE_DIR}/src/fftw-3.3.5-dll64)
+list(APPEND CMAKE_PREFIX_PATH ${FFTW3_PATH})
+list(APPEND CMAKE_REQUIRED_INCLUDES ${FFTW3_PATH})
 
 message("**************************************************")
 message("Add or Link directories")
