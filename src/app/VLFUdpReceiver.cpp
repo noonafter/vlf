@@ -35,7 +35,7 @@ int VLFUdpReceiver::startReceiving() {
     // 注册包接收函数
     connect(udp_socket, &QUdpSocket::readyRead, this, &VLFUdpReceiver::slot_receiver_readyRead);
     // 监听对应数据端口
-    if(udp_socket->bind(QHostAddress::LocalHost, 55556)){
+    if(udp_socket->bind(QHostAddress::AnyIPv4, 55556)){
         qDebug() << "Bind success";
     }else {
         qDebug() << "Udp socket bind fail: " << udp_socket->errorString();

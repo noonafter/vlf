@@ -52,7 +52,7 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
             emit signal_device_info_updated(*d_config);
         }
 
-    }else if(byte_size < 1080){ // 业务包
+    }else if(byte_size <= 1076 && byte_size >= 500){ // 业务包
 
         if(byte_array.at(28) == (char)0x7e && byte_array.at(29) == (char)0x03){
             quint8 idx_ch = (quint8) (byte_array.at(32));
@@ -62,6 +62,8 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
             }
         }
 
+    } else{
+        qDebug() << "receive package, but length is: " << byte_size;
     }
 
 }

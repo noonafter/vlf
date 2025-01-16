@@ -17,12 +17,12 @@
 
 // 256个业务包数据，如果sample是rint32，可以存65536个sample
 #define RAWDATA_BUF_SIZE (256*1024) // 262144
-#define NUM_CHLZA (5)
+#define NUM_CHLZB (5)
 #define NUM_CH_SUB (334)
 #define MAX_FFTSIZE_SUBCH (512)
 
-VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZA),
-                                          chlzb(NUM_CHLZA), fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB) {
+VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZB),
+                                          chlzb(NUM_CHLZB), fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB) {
     m_queue = ReaderWriterQueue<QByteArray>(512);
     ch_info.open_state = true;
     last_channel_params = QByteArray(16, '\0');
@@ -48,7 +48,7 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDAT
     num_ch_chlzb = 160;
     dec_factor_chlzb = 80;
     //    fir lowpass 24000 138 150 45
-    for (int i = 0; i < NUM_CHLZA; i++) {
+    for (int i = 0; i < NUM_CHLZB; i++) {
         chlzb_inbuf[i] = cbuffercf_create_max(dec_factor_chlzb * 2, dec_factor_chlzb);
         chlzb[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlzb, hh1_len / num_ch_chlzb / 2, hh1);
     }
@@ -57,7 +57,7 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDAT
     }
 }
 
-VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZA), chlzb(NUM_CHLZA),
+VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZB), chlzb(NUM_CHLZB),
                                   fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB) {
     ch_info.channel_id = idx;
 
@@ -81,15 +81,15 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
     num_ch_chlza = 16;
     dec_factor_chlza = 8;
 //    fir lowpass kaiser 192000 6000 6900 42
-    chlza_inbuf = cbuffercf_create_max(256, dec_factor_chlza);
+    chlza_inbuf = cbuffercf_create_max(512, dec_factor_chlza);
     chlza = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlza, hh0_len / num_ch_chlza / 2, hh0);
 
     num_ch_chlzb = 160;
     dec_factor_chlzb = 80;
     //    fir lowpass 24000 138 150 45
-    for (int i = 0; i < NUM_CHLZA; i++) {
+    for (int i = 0; i < NUM_CHLZB; i++) {
+        chlzb_inbuf[i] = cbuffercf_create_max(dec_factor_chlzb * 4, dec_factor_chlzb);
         chlzb[i] = firpfbch2_crcf_create(LIQUID_ANALYZER, num_ch_chlzb, hh1_len / num_ch_chlzb / 2, hh1);
-        chlzb_inbuf[i] = cbuffercf_create_max(dec_factor_chlzb * 2, dec_factor_chlzb);
     }
     for (int i = 0; i < NUM_CH_SUB; i++) {
         fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
@@ -100,7 +100,8 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
 VLFChannel::~VLFChannel() {
 
     firpfbch2_crcf_destroy(chlza);
-    for (int i = 0; i < NUM_CHLZA; i++) {
+    cbuffercf_destroy(chlza_inbuf);
+    for (int i = 0; i < NUM_CHLZB; i++) {
         firpfbch2_crcf_destroy(chlzb[i]);
         cbuffercf_destroy(chlzb_inbuf[i]);
     }
@@ -197,12 +198,14 @@ void VLFChannel::slot_business_package_enqueued() {
         roundSeconds(last_datetime);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
+        qDebug() << "file name changed: " << rawdata_file_name;
     }
 
     if (last_datetime.msecsTo(current_datetime) > (10000 - 50)) {
         last_datetime = last_datetime.addSecs(10);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
+        qDebug() << "file name changed: " << rawdata_file_name;
     }
 
 //    // 如果文件名改变，重新打开文件
@@ -259,7 +262,7 @@ void VLFChannel::slot_business_package_enqueued() {
         firpfbch2_crcf_execute(chlza, chlza_in_tmp, chlza_out_tmp);
 
         // 结果推送，只处理1,2,3,4,5号通道
-        for (int i = 0; i < NUM_CHLZA; i++){
+        for (int i = 0; i < NUM_CHLZB; i++){
             cbuffercf_push(chlzb_inbuf[i], chlza_out_tmp[1 + i]);
         }
 
@@ -293,7 +296,7 @@ void VLFChannel::slot_business_package_enqueued() {
     }
 
     // 处理chlzb[1-3]
-    for (int idx_chlzb = 1; idx_chlzb < NUM_CHLZA - 1; idx_chlzb++) {
+    for (int idx_chlzb = 1; idx_chlzb < NUM_CHLZB - 1; idx_chlzb++) {
         while (cbuffercf_size(chlzb_inbuf[idx_chlzb]) >= dec_factor_chlzb) {
             // 读取输入，80个sample
             cbuffercf_read(chlzb_inbuf[idx_chlzb], dec_factor_chlzb, &chlzb_in_tmp, &num_read);
@@ -334,11 +337,14 @@ void VLFChannel::slot_business_package_enqueued() {
 
     // 4.如果buf满，执行fft
     int fftsize_subch = 512;
-    if(cbuffercf_size(fft_inbuf[0]) >= fftsize_subch){
+    for(int i = 0; i<NUM_CH_SUB;i++){
+        if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
 
 
-        cbuffercf_release(fft_inbuf[0], fftsize_subch);
+            cbuffercf_release(fft_inbuf[i], fftsize_subch);
+        }
     }
+
 
 
     recv_count++;

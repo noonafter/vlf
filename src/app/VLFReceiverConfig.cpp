@@ -3,6 +3,7 @@
 //
 
 #include "VLFReceiverConfig.h"
+#include <QDateTime>
 
 VLFReceiverConfig::VLFReceiverConfig(const QString &configPath) : configPath(configPath), device_config{}, ch_config_vec(CHANNEL_COUNT) {
     loadConfig();
@@ -120,7 +121,8 @@ bool VLFReceiverConfig::saveConfig() {
 
 void VLFReceiverConfig::createDefaultConfig() {
 
-    device_config = {0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0};
+    uint32_t ymd = QDateTime::currentDateTime().toString("yyyyMMdd").toUInt();
+    device_config = {0, ymd, 0.0, 0.0, 0.0, 0, 0, 0, 0};
 
     for(int i = 0; i< CHANNEL_COUNT;++i){
         ch_config_vec[i] = {1, (uint8_t)i, 1, 1, 192000, 10000, 60000};
