@@ -50,6 +50,7 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
 
             // 通知各个通道，部分设备信息
             emit signal_device_info_updated(*d_config);
+            qDebug() << "receive status package, length is: " << byte_size;
         }
 
     }else if(byte_size <= 1076 && byte_size >= 500){ // 业务包
@@ -80,6 +81,7 @@ void VLFAbstractReceiver::set_vlf_ch(QVector<VLFChannel *> *chs) {
 void VLFAbstractReceiver::set_vlf_config(VLFReceiverConfig *config) {
     m_config = config;
     emit signal_device_info_updated(m_config->device_config);
+    // 通知每个信道初始化信道级参数
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
         m_sender[i]->emit_signal_channel_info_updated(m_config->ch_config_vec[i]);
     }

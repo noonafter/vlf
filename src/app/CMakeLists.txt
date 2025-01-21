@@ -33,6 +33,10 @@ target_include_directories(${APP_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src/readerwriterqueue
         )
 
+target_link_directories(${APP_NAME} PUBLIC
+        ${FFTW3_PATH}
+        )
+
 target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::Core
         ${QT_VERSION_BASE}::Gui
@@ -41,5 +45,6 @@ target_link_libraries (${APP_NAME}
         ${QT_VERSION_BASE}::PrintSupport
         ${QT_VERSION_BASE}::Network
         liquid
+        libfftw3f-3
 
         )

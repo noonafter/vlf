@@ -94,10 +94,17 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
     for (int i = 0; i < NUM_CH_SUB; i++) {
         fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
     }
+    in512 = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * 512);
+    out512 = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * 512);
+    fplan512 = fftwf_plan_dft_1d(512, in512, out512, FFTW_FORWARD, FFTW_MEASURE);
 
 }
 
 VLFChannel::~VLFChannel() {
+
+    fftwf_free(in512);
+    fftwf_free(out512);
+    fftwf_destroy_plan(fplan512);
 
     firpfbch2_crcf_destroy(chlza);
     cbuffercf_destroy(chlza_inbuf);
@@ -125,6 +132,9 @@ bool VLFChannel::package_enqueue(const QByteArray &package) {
 void VLFChannel::slot_device_info_update(VLFDeviceConfig d_config) {
 
     d_info = d_config;
+    QDate cnt_date(d_info.year_month_day / 10000, (d_info.year_month_day / 100) % 100, d_info.year_month_day % 100);
+    current_datetime.setDate(cnt_date);
+
 
 }
 
@@ -148,11 +158,9 @@ void VLFChannel::slot_business_package_enqueued() {
     if (!m_queue.try_dequeue(package)) {
         return;
     }
-
     if (!ch_info.open_state || package.size() < 1076) {
         return;
     }
-
     // 收到业务包后，如果是第一次收到，初始化通道参数；如果不是第一次收到，检查参数与本地是否一致
     // 这个逻辑不对，应该是直接与本地参数进行比较，不一致直接丢弃，不存在下位机改变上位机参数
     if (last_channel_params != package.mid(32, 16)) {
@@ -173,14 +181,13 @@ void VLFChannel::slot_business_package_enqueued() {
     // 处理业务包头
 
     // 根据包提供的时间，设置current_datetime
-    QDate cnt_date(d_info.year_month_day / 10000, (d_info.year_month_day / 100) % 100, d_info.year_month_day % 100);
     QTime cnt_time(package.at(26), package.at(25), package.at(24), package.mid(20, 4).toUInt());
-    current_datetime.setDate(cnt_date);
     current_datetime.setTime(cnt_time);
+//    qDebug() << current_datetime;
 
     // 根据包内信息，获取文件夹路径
     QString ch_id_s = QString::number(ch_info.channel_id);
-    QString rawdata_dir_path = app_dir + "/rawdata/ch" + ch_id_s + "/" + cnt_date.toString("yyyyMMdd");
+    QString rawdata_dir_path = app_dir + "/rawdata/ch" + ch_id_s + "/" + current_datetime.toString("yyyyMMdd");
 
     rawdata_writer.setDir(rawdata_dir_path);
     // 由于有多个线程都要写，这里设置整个文件的路径，可能会有问题，后面写就用绝对路径
@@ -198,13 +205,19 @@ void VLFChannel::slot_business_package_enqueued() {
         roundSeconds(last_datetime);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
-        qDebug() << "file name changed: " << rawdata_file_name;
+        qDebug() << "file name inited: " << rawdata_file_name;
     }
 
-    if (last_datetime.msecsTo(current_datetime) > (10000 - 50)) {
-        last_datetime = last_datetime.addSecs(10);
+    qint64 passed_count = last_datetime.msecsTo(current_datetime) / 10000;
+    if (passed_count) {
+        QDate previous_date = last_datetime.date();
+        last_datetime = last_datetime.addSecs(10*passed_count);
         rfn_list.replace(5, last_datetime.toString("yyyyMMdd_hhmmss"));
         rawdata_file_name = rfn_list.join("_");
+        // 如果日期发生变化，则将本地日期加1
+        if(last_datetime.date() != previous_date){
+            current_datetime = current_datetime.addDays(1);
+        }
         qDebug() << "file name changed: " << rawdata_file_name;
     }
 
@@ -337,8 +350,14 @@ void VLFChannel::slot_business_package_enqueued() {
 
     // 4.如果buf满，执行fft
     int fftsize_subch = 512;
+    std::complex<float> *r;
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
+            cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
+//            if(fftsize_subch == 512){
+                memmove(in512, r, 512* sizeof(fftwf_complex));
+                fftwf_execute(fplan512);
+//            }
 
 
             cbuffercf_release(fft_inbuf[i], fftsize_subch);
@@ -349,7 +368,7 @@ void VLFChannel::slot_business_package_enqueued() {
 
     recv_count++;
     if (!(recv_count % 5000)) {
-        qDebug() << "recv_count:" << recv_count;
+        qDebug() << "ch" << ch_info.channel_id << "recv_count:" << recv_count;
     }
 
 }

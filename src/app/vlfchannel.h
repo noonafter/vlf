@@ -12,6 +12,7 @@
 #include "BufferedWriter.h"
 #include <complex>
 #include "liquid.h"
+#include "fftw3.h"
 
 
 
@@ -90,7 +91,8 @@ private:
     QVector<firpfbch2_crcf> chlzb;
 
     QVector<cbuffercf> fft_inbuf;
-    fftplan m_fft;
+    fftwf_complex *in512, *out512;
+    fftwf_plan fplan512;
     QVector<cbuffercf> fft_outbuf;
 
 

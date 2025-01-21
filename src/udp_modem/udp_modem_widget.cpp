@@ -110,6 +110,8 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
 
     connect(bussiness_tx_timer, &QTimer::timeout, sig_worker, &udp_modem_worker::udp_tx_business);
     connect(status_tx_timer, &QTimer::timeout, sig_worker, &udp_modem_worker::udp_tx_status);
+    // 程序启动时先发送一次状态包
+    QTimer::singleShot(0, sig_worker, &udp_modem_worker::udp_tx_status);
 
 
 
