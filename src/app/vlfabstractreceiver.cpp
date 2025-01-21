@@ -80,6 +80,9 @@ void VLFAbstractReceiver::set_vlf_ch(QVector<VLFChannel *> *chs) {
 
 void VLFAbstractReceiver::set_vlf_config(VLFReceiverConfig *config) {
     m_config = config;
+    // 接收端启动时，更新一次设备的日期信息，防止生成的文件日期信息不对(默认启动时，本机时间和采集设备的日期相同)
+    m_config->device_config.year_month_day = QDate::currentDate().toString("yyyyMMdd").toUInt();
+    // 通知每个信道初始化设备级参数
     emit signal_device_info_updated(m_config->device_config);
     // 通知每个信道初始化信道级参数
     for (int i = 0; i < CHANNEL_COUNT; ++i) {
