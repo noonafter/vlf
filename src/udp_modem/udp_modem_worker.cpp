@@ -52,7 +52,7 @@ udp_modem_worker::udp_modem_worker(QObject *parent) :
     agc = agc_rrrf_create();
 
 #ifdef UDP_LOCAL_BACKUP
-    file = new QFile(R"(E:\project\vlf\src\udp_modem\sig_sum_int_tx)");
+    file = new QFile(R"(D:\project\vlf\scripts\sig_tx_f32)");
     out = new QDataStream(file);
     out->setFloatingPointPrecision(QDataStream::SinglePrecision);
     out->setByteOrder(QDataStream::LittleEndian);
@@ -285,7 +285,7 @@ void udp_modem_worker::udp_tx_business() {
             // prepare udp byte
             sig_tx[j] = (int32_t)(tmp * pow(2,29));
 #ifdef UDP_LOCAL_BACKUP
-            *out << sig_tx[j];
+            *out << tmp;
 #endif
             dstream << sig_tx[j];
         }

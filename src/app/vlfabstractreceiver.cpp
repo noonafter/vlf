@@ -61,6 +61,11 @@ void VLFAbstractReceiver::process_package(const QByteArray &byte_array){
             if(m_chs->at(idx_ch)->package_enqueue(byte_array)){
                 m_sender[idx_ch]->emit_signal_business_package_enqueued();
             }
+
+            uint32_t stcp_num = qToBigEndian(*reinterpret_cast<const uint32_t *>((byte_array.mid(0, 4).constData())));
+            if (!(stcp_num % 7500)) {
+                qDebug() << "ch" << idx_ch << "stcp_num:" << stcp_num << "at " << QDateTime::currentDateTime();;
+            }
         }
 
     } else{

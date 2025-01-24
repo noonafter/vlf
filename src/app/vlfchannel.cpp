@@ -159,17 +159,20 @@ void VLFChannel::slot_business_package_enqueued() {
         return;
     }
     if (!ch_info.open_state || package.size() < 1076) {
+        qDebug() << "open_state false";
         return;
     }
     // 收到业务包后，如果是第一次收到，初始化通道参数；如果不是第一次收到，检查参数与本地是否一致
     // 这个逻辑不对，应该是直接与本地参数进行比较，不一致直接丢弃，不存在下位机改变上位机参数
     if (last_channel_params != package.mid(32, 16)) {
+        qDebug() << "last_channel_params false";
         return;
     }
 
     uint32_t cnt_udp_idx = qToBigEndian(*reinterpret_cast<const uint32_t *>((package.mid(0, 4).constData())));
     // 如果udp包号小于上一次的号且号码邻近，说明这一包晚到了，直接丢掉
     if (cnt_udp_idx <= last_udp_idx && last_udp_idx - cnt_udp_idx < 1 << 20) {
+        qDebug() << "cnt_udp_idx <= last_udp_idx false";
         return;
     }
     last_udp_idx = cnt_udp_idx;
@@ -354,6 +357,18 @@ void VLFChannel::slot_business_package_enqueued() {
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
+            if(i == 1){
+                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
+                QFile wfile(wfilename);
+                wfile.open(QIODevice::Append);
+                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
+            }
+            if(i == 67){
+                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
+                QFile wfile(wfilename);
+                wfile.open(QIODevice::Append);
+                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
+            }
 //            if(fftsize_subch == 512){
                 memmove(in512, r, 512* sizeof(fftwf_complex));
                 fftwf_execute(fplan512);
