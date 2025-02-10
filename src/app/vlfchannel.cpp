@@ -134,7 +134,9 @@ void VLFChannel::slot_device_info_update(VLFDeviceConfig d_config) {
     d_info = d_config;
     QDate cnt_date(d_info.year_month_day / 10000, (d_info.year_month_day / 100) % 100, d_info.year_month_day % 100);
     current_datetime.setDate(cnt_date);
-
+    if(!current_datetime.isValid()){
+        qWarning() << "After device_info_update, current_datetime is invalid!";
+    }
 
 }
 
@@ -236,7 +238,8 @@ void VLFChannel::slot_business_package_enqueued() {
     // 处理业务包数据
     // 在记录时间内，进行记录。记录和监测分开，rawdata_writer用来记录，rawdata_buf用于后续监测。
     QByteArray pack_data(package.constData() + 52, 1024);
-    if (elapsed_ms % repeat_ms < record_ms) {
+//    if (elapsed_ms % repeat_ms < record_ms) {
+    if (1) {
         rawdata_writer.write(pack_data);
     } else { // 超出记录时间，写入已有数据，清空buf
         qDebug() << "not in record time, record stop";
@@ -357,13 +360,7 @@ void VLFChannel::slot_business_package_enqueued() {
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
-            if(i == 1){
-                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
-                QFile wfile(wfilename);
-                wfile.open(QIODevice::Append);
-                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
-            }
-            if(i == 67){
+            if(i == 0){
                 QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
                 QFile wfile(wfilename);
                 wfile.open(QIODevice::Append);
