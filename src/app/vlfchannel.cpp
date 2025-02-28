@@ -221,7 +221,9 @@ void VLFChannel::slot_business_package_enqueued() {
         rawdata_file_name = rfn_list.join("_");
         // 如果日期发生变化，则将本地日期加1
         if(last_datetime.date() != previous_date){
-            current_datetime = current_datetime.addDays(1);
+            qDebug() << "last datetime: " << last_datetime.date();
+            qDebug() << "previous_date: " << previous_date;
+            current_datetime.setDate(last_datetime.date());
         }
         qDebug() << "file name changed: " << rawdata_file_name;
     }
@@ -360,16 +362,26 @@ void VLFChannel::slot_business_package_enqueued() {
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
-            if(i == 0){
-                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
-                QFile wfile(wfilename);
-                wfile.open(QIODevice::Append);
-                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
-            }
-//            if(fftsize_subch == 512){
-                memmove(in512, r, 512* sizeof(fftwf_complex));
-                fftwf_execute(fplan512);
+//            if(i == 133){
+//                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
+//                QFile wfile(wfilename);
+//                wfile.open(QIODevice::Append);
+//                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
 //            }
+
+            memmove(in512, r, 512* sizeof(fftwf_complex));
+
+            fftwf_execute(fplan512);
+            QVector<float> freq_data(512);
+            if(i == 3){
+                for (int j = 0; j < 512; j++) {
+                    std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
+                    freq_data[j] = std::norm(*tmp);
+                }
+                emit subch_freq_float_ready(freq_data);
+            }
+
+
 
 
             cbuffercf_release(fft_inbuf[i], fftsize_subch);

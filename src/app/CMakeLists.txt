@@ -9,6 +9,10 @@ set (APP_SRC
     vlfchannel.h
     VLFReceiverConfig.cpp
     VLFReceiverConfig.h
+    freqplotter.cpp
+    freqplotter.h
+    qcustomplot.h
+    qcustomplot.cpp
         )
 
 set(APP_HDRS

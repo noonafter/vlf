@@ -5,6 +5,7 @@
 #include <QThread>
 #include "VLFUdpReceiver.h"
 #include "vlfchannel.h"
+#include "freqplotter.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -30,6 +31,9 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    FreqPlotter *freqPlotter;
+
+
     QThread *recv_thread;
     VLFAbstractReceiver *vlf_receiver;
     QVector<QThread*> ch_thread;

@@ -10,9 +10,14 @@ MainWindow::MainWindow(QWidget *parent)
     qRegisterMetaType<QSharedPointer<QByteArray>>("QSharedPointer<QByteArray>");
     qRegisterMetaType<VLFDeviceConfig>("VLFDeviceConfig");
     qRegisterMetaType<VLFChannelConfig>("VLFChannelConfig");
+    qRegisterMetaType<QVector<float>>("QVector<float>");
 
     // 获取资源（对象）
     ui->setupUi(this);
+    // ui资源
+    freqPlotter = new FreqPlotter(ui->freq_widget,true);
+    connect(ui->pushButton, &QPushButton::clicked, freqPlotter, &FreqPlotter::togglePlotMode);
+    
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
     // 多线程对象
@@ -23,7 +28,10 @@ MainWindow::MainWindow(QWidget *parent)
         vlf_ch[i] = new VLFChannel(i);
     }
 
+    connect(vlf_ch[0], &VLFChannel::subch_freq_float_ready, freqPlotter, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
 
+//    connect(ui->comboBox_sample_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
+//            &udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged);
     // 处理业务逻辑，保证线程安全
     // 具体业务逻辑：
     // vlf_receiver移动到recv_thread线程，保证协议数据包接收和分发单独使用一个线程，不会卡住主线程
@@ -78,4 +86,3 @@ MainWindow::~MainWindow()
 
     delete ui;
 }
-

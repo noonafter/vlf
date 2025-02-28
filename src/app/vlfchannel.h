@@ -33,6 +33,9 @@ public slots:
     void slot_channel_info_update(VLFChannelConfig ch_config);
     void slot_business_package_enqueued();
 
+signals:
+    void subch_freq_float_ready(QVector<float> freq_data);
+
 private:
 
     ReaderWriterQueue<QByteArray> m_queue;
