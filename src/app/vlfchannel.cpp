@@ -362,12 +362,12 @@ void VLFChannel::slot_business_package_enqueued() {
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
-//            if(i == 133){
-//                QString wfilename = "D:\\project\\vlf\\scripts\\data_subch" + QString::number(i);
-//                QFile wfile(wfilename);
-//                wfile.open(QIODevice::Append);
-//                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
-//            }
+            if(i == 3){
+                QString wfilename = "D:\\alc\\c\\vlf\\scripts\\data_subch" + QString::number(i);
+                QFile wfile(wfilename);
+                wfile.open(QIODevice::Append);
+                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
+            }
 
             memmove(in512, r, 512* sizeof(fftwf_complex));
 
@@ -376,7 +376,7 @@ void VLFChannel::slot_business_package_enqueued() {
             if(i == 3){
                 for (int j = 0; j < 512; j++) {
                     std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
-                    freq_data[j] = std::norm(*tmp);
+                    freq_data[j] = std::sqrt(std::norm(*tmp));
                 }
                 emit subch_freq_float_ready(freq_data);
             }

@@ -52,3 +52,14 @@ target_link_libraries (${APP_NAME}
         libfftw3f-3
 
         )
+
+# 定义源文件路径和目标路径
+set(DLL_SRC "${CMAKE_SOURCE_DIR}/src/fftw-3.3.5-dll64/libfftw3f-3.dll")
+set(DEST_DIR "$<TARGET_FILE_DIR:${APP_NAME}>")
+
+# 添加自定义命令实现自动拷贝
+add_custom_command(TARGET ${APP_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy "${DLL_SRC}" "${DEST_DIR}"
+        COMMENT "Copying DLL to output directory"
+        VERBATIM
+        )

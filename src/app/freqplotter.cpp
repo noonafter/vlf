@@ -9,6 +9,9 @@
 
 
 FreqPlotter::FreqPlotter(QWidget *parent, bool isComplex) : QWidget(parent) {
+    qRegisterMetaType<QVector<float>>("QVector<double>");
+    qRegisterMetaType<QVector<float>>("QVector<float>");
+
     container = parent;
     if(container == nullptr){
         // 将所有属性设置为无效
@@ -82,32 +85,16 @@ void FreqPlotter::togglePlotMode() {
 }
 
 void FreqPlotter::plot_freq(QVector<double> freq_data) {
-    int fft_size = freq_data.size();
-    // fft_size变化，且为默认情况边界跟随fft_size变化，需要更新bin_lower和bin_upper
-    if(fft_size != m_fft_size && m_bin_state != ManualSet){
-        m_bin_state = NeedUpdate;
-        m_fft_size = fft_size;
-    }
-
-    // 得到最新的bin_lower和bin_upper，范围为(N-1)/2+1-N:-1或0:(N-1)/2
-    if(m_bin_state == NeedUpdate){
-        update_bin_state();
-    }
-
-    int bin_count = bin_upper - bin_lower + 1;
-    // 只画要显示的部分
-    QVector<double> x(bin_count), y(bin_count);
-    int idx_vec = 0;
-    for (int i = 0; i <= bin_count; i++) {
-        idx_vec = bin_lower + i;
-        x[i] = idx_vec;
-        idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
-        y[i] = freq_data[idx_vec];
-    }
-    freq_plot->graph(0)->setData(x, y);
+    plot_freq_impl(std::move(freq_data));
 }
 
 void FreqPlotter::plot_freq(QVector<float> freq_data) {
+    plot_freq_impl(std::move(freq_data));
+}
+
+
+template<typename T>
+void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
     int fft_size = freq_data.size();
     // fft_size变化，且为默认情况边界跟随fft_size变化，需要更新bin_lower和bin_upper
     if(fft_size != m_fft_size && m_bin_state != ManualSet){
@@ -115,26 +102,26 @@ void FreqPlotter::plot_freq(QVector<float> freq_data) {
         m_fft_size = fft_size;
     }
 
-
     // 得到最新的bin_lower和bin_upper，范围为(N-1)/2+1-N:-1或0:(N-1)/2
-    if(m_bin_state == NeedUpdate){
+    if (m_bin_state == NeedUpdate) {
         update_bin_state();
     }
 
-    int bin_count = bin_upper - bin_lower + 1;
     // 只画要显示的部分
-    QVector<double> x(bin_count), y(bin_count);
+    int bin_count = bin_upper - bin_lower + 1;
+    int plot_size = bin_count / x_step;
     int idx_vec = 0;
-    float tmp = 0.0f;
-    for (int i = 0; i < bin_count; i++) {
-        idx_vec = bin_lower + i;
+    QVector<double> x(plot_size), y(plot_size);
+    for (int i = 0; i < plot_size; i++) {
+        idx_vec = bin_lower + i * x_step;
         x[i] = idx_vec;
         idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
-        y[i] = (double)freq_data[idx_vec];
+        y[i] = static_cast<double>(freq_data[idx_vec]);
     }
     freq_plot->graph(0)->setData(x, y);
     freq_plot->replot();
 }
+
 
 void FreqPlotter::update_bin_state() {
     // 收到空QVector
@@ -156,7 +143,7 @@ void FreqPlotter::update_bin_state() {
         bin_upper = m_fft_size - 1;
     }
     freq_plot->xAxis->setRange(bin_lower, bin_upper);
-    freq_plot->yAxis->setRange(0, 50);
+    freq_plot->yAxis->setRange(0, 100);
     freq_plot->replot();
     m_bin_state = UptoDate;
 }

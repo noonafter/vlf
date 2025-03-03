@@ -22,7 +22,6 @@ public:
     explicit FreqPlotter(QWidget *parent = nullptr, bool isComplex = false);
     void setPlotMode(PlotMode mode);
     void togglePlotMode();
-
     void plot_freq(QVector<double> freq_data);
     void plot_freq(QVector<float> freq_data);
 
@@ -32,6 +31,8 @@ private:
 
     void init_freq_plot();
     void init_time_freq_plot();
+template <typename T>
+    void plot_freq_impl(QVector<T> freq_data);
     void update_bin_state();
 
     QWidget *container;

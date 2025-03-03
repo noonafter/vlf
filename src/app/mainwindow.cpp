@@ -10,7 +10,6 @@ MainWindow::MainWindow(QWidget *parent)
     qRegisterMetaType<QSharedPointer<QByteArray>>("QSharedPointer<QByteArray>");
     qRegisterMetaType<VLFDeviceConfig>("VLFDeviceConfig");
     qRegisterMetaType<VLFChannelConfig>("VLFChannelConfig");
-    qRegisterMetaType<QVector<float>>("QVector<float>");
 
     // 获取资源（对象）
     ui->setupUi(this);
