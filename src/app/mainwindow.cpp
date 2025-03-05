@@ -2,7 +2,6 @@
 #include "ui_mainwindow.h"
 #include <QTimer>
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ch_thread(CHANNEL_COUNT), vlf_ch(CHANNEL_COUNT)
     , ui(new Ui::MainWindow)
@@ -13,8 +12,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 获取资源（对象）
     ui->setupUi(this);
+    ui->range_slider_db->SetRange(-160, 10);
+    ui->range_slider_bin->SetRange(-300,300);
     // ui资源
     freqPlotter_ddc = new FreqPlotter(ui->widget_ddc, true);
+
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
@@ -32,6 +34,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_upper);
     connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_lower);
     connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_upper);
+
+    connect(ui->range_slider_bin,&RangeSlider::lowerValueChanged,freqPlotter_ddc,&FreqPlotter::set_bin_lower);
+    connect(ui->range_slider_bin,&RangeSlider::upperValueChanged,freqPlotter_ddc,&FreqPlotter::set_bin_upper);
+    connect(ui->range_slider_db,&RangeSlider::lowerValueChanged,freqPlotter_ddc,&FreqPlotter::set_db_lower);
+    connect(ui->range_slider_db,&RangeSlider::upperValueChanged,freqPlotter_ddc,&FreqPlotter::set_db_upper);
 
 //    connect(ui->comboBox_sample_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
 //            &udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged);

@@ -13,6 +13,8 @@ set (APP_SRC
     freqplotter.h
     qcustomplot.h
     qcustomplot.cpp
+    RangeSlider.cpp
+    RangeSlider.h
         )
 
 set(APP_HDRS
@@ -34,6 +36,7 @@ set(APP_NAME vlf_rx)
 add_executable(${APP_NAME} ${APP_SRC} ${APP_HDRS} ${APP_UI_HDRS})
 
 target_include_directories(${APP_NAME} PUBLIC
+        ${CMAKE_SOURCE_DIR}/src/app
         ${CMAKE_SOURCE_DIR}/src/readerwriterqueue
         )
 

@@ -30,6 +30,7 @@ public:
     int set_db_upper(int up);
     void plot_freq(QVector<double> freq_data);
     void plot_freq(QVector<float> freq_data);
+    // 后续考虑加上直接float *和size的plot版本
 
     ~FreqPlotter() override;
 
@@ -47,6 +48,12 @@ template <typename T>
     QVBoxLayout *layout;
     QCustomPlot * freq_plot;
     QCustomPlot * time_freq_plot;
+    QCPColorScale *color_scale;
+    QCPColorMap *color_map;
+    int map_xsize;
+    int map_ysize;
+    double *map_data;
+    QCPMarginGroup *group;
     PlotMode m_plot_mode;
 
     // 频谱图
@@ -63,6 +70,9 @@ template <typename T>
     int bin_upper; // 设置的要显示的bin上限
     int db_lower;
     int db_upper;
+
+    int time_lower;
+    int time_upper;
 
     // TODO：加上waterfall一起调
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行

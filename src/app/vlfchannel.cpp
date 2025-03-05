@@ -241,10 +241,10 @@ void VLFChannel::slot_business_package_enqueued() {
     // 在记录时间内，进行记录。记录和监测分开，rawdata_writer用来记录，rawdata_buf用于后续监测。
     QByteArray pack_data(package.constData() + 52, 1024);
 //    if (elapsed_ms % repeat_ms < record_ms) {
-    if (1) {
+    if (0) {
         rawdata_writer.write(pack_data);
     } else { // 超出记录时间，写入已有数据，清空buf
-        qDebug() << "not in record time, record stop";
+//        qDebug() << "not in record time, record stop";
     }
 
     // 进行监测，是否需要进行缓存？？？一包1024字节，如果是rint32，就是256个sample，
@@ -363,7 +363,7 @@ void VLFChannel::slot_business_package_enqueued() {
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
-            if(i == 3){
+            if(i == -1){
                 QString wfilename = "D:\\alc\\c\\vlf\\scripts\\data_subch" + QString::number(i);
                 QFile wfile(wfilename);
                 wfile.open(QIODevice::Append);

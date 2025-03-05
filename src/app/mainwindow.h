@@ -6,6 +6,8 @@
 #include "VLFUdpReceiver.h"
 #include "vlfchannel.h"
 #include "freqplotter.h"
+#include "rangeslider.h"
+
 
 
 QT_BEGIN_NAMESPACE

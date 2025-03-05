@@ -109,6 +109,26 @@
            <number>160</number>
           </property>
          </widget>
+         <widget class="RangeSlider" name="range_slider_db" native="true">
+          <property name="geometry">
+           <rect>
+            <x>60</x>
+            <y>150</y>
+            <width>151</width>
+            <height>31</height>
+           </rect>
+          </property>
+         </widget>
+         <widget class="RangeSlider" name="range_slider_bin" native="true">
+          <property name="geometry">
+           <rect>
+            <x>60</x>
+            <y>100</y>
+            <width>151</width>
+            <height>31</height>
+           </rect>
+          </property>
+         </widget>
         </widget>
        </item>
        <item>
@@ -185,6 +205,14 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>RangeSlider</class>
+   <extends>QWidget</extends>
+   <header location="global">rangeslider.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -34,11 +34,18 @@ FreqPlotter::FreqPlotter(QWidget *parent, bool isComplex) : QWidget(parent) {
     bin_upper = 0;
     db_lower = -160;
     db_upper = 10;
+    map_xsize = 1600;
+    map_ysize = 100;
+    time_lower = 0;
+    time_upper = map_ysize;
 
     // 获取资源
     layout = new QVBoxLayout(container);
     freq_plot = new QCustomPlot(this);
     time_freq_plot = new QCustomPlot(this);
+    color_scale = new QCPColorScale(time_freq_plot);
+    color_map = new QCPColorMap(time_freq_plot->xAxis, time_freq_plot->yAxis2);
+    group = new QCPMarginGroup(time_freq_plot);
 
     // 对容器进行布局
     layout->addWidget(freq_plot);
@@ -62,16 +69,38 @@ void FreqPlotter::init_freq_plot() {
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
-    freq_plot->xAxis->setLabel("Frequency (Hz)");
     freq_plot->yAxis->setRange(db_lower,db_upper);
-    freq_plot->yAxis->setLabel("dBm");
     freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
 }
 
 void FreqPlotter::init_time_freq_plot() {
-    time_freq_plot->addGraph();
-    time_freq_plot->xAxis->setLabel("Time (s)");
-    time_freq_plot->yAxis->setLabel("Frequency (Hz)");
+    time_freq_plot->yAxis->setRange(db_lower,db_upper);
+    time_freq_plot->yAxis2->setRange(time_lower,time_upper);
+    color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
+
+    // 设置color scale
+    time_freq_plot->plotLayout()->insertColumn(0);
+    time_freq_plot->plotLayout()->addElement(0, 0, color_scale);
+    color_scale->setBarWidth(6);
+    color_scale->axis()->setTickLabels(false);
+    color_scale->setRangeDrag(false);
+    color_scale->setRangeZoom(false);
+    // color scale对齐边界
+    time_freq_plot->axisRect()->setMarginGroup(QCP::msTop | QCP::msBottom, group);
+    color_scale->setMarginGroup(QCP::msTop | QCP::msBottom, group);
+
+    // 设置color map
+    color_map->setColorScale(color_scale);
+    color_map->data()->setSize(map_xsize, map_ysize);
+    map_data = color_map->data()->get_mdata(); // 必须在setsize之后
+    color_map->setInterpolate(true);
+    color_map->data()->fill(-160); // moving to QCPColorMapData constructor can speed up launch
+
+
+
+
+
+
     time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
 }
 
@@ -112,17 +141,37 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
 
     // 只画要显示的部分,节省资源
     int bin_count = bin_upper - bin_lower + 1;
-    int plot_size = bin_count / freq_bin_step;
     int idx_vec = 0;
-    QVector<double> x(plot_size), y(plot_size);
-    for (int i = 0; i < plot_size; i++) {
-        idx_vec = bin_lower + i * freq_bin_step;
-        x[i] = idx_vec;
-        idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
-        y[i] = static_cast<double>(freq_data[idx_vec]);
+
+    if(m_plot_mode == FreqMode){
+        // 先确定freq_bin_step
+        int plot_size = bin_count / freq_bin_step;
+        QVector<double> x(plot_size), y(plot_size);
+        for (int i = 0; i < plot_size; i++) {
+            idx_vec = bin_lower + i * freq_bin_step;
+            x[i] = idx_vec;
+            idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
+            y[i] = static_cast<double>(freq_data[idx_vec]);
+        }
+        freq_plot->graph(0)->setData(x, y);
+        freq_plot->replot();
+    } else if(m_plot_mode == TimeFreqMode){
+
+        // 如果在涉及全图重新解算的操作（如color scale重设范围），能够接受原有画面消失，可以注释这一行，加快绘图速度
+        // 所有data向后移动一行，空出第一行，
+        memmove(map_data + map_xsize, map_data, map_xsize * (map_ysize - 1) * sizeof(map_data[0]));
+
+        // 先确定的map_xsize
+        double time_freq_bin_step = double(bin_count)/ map_xsize;
+        for (int i = 0; i < map_xsize; i++) {
+            idx_vec = lround(bin_lower + i * time_freq_bin_step);
+            idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
+            map_data[i] = static_cast<double>(freq_data[idx_vec]);
+        }
+        color_map->updateMapImageTranslate();
+        time_freq_plot->replot();
     }
-    freq_plot->graph(0)->setData(x, y);
-    freq_plot->replot();
+
 }
 
 // 在bin跟随fft_size情况下，根据fft_size更新bin
@@ -148,6 +197,10 @@ void FreqPlotter::update_bin_state() {
     // 最终索引只会在(N-1)/2+1-N:-1 和 0:(N-1)
     freq_plot->xAxis->setRange(bin_lower, bin_upper);
     freq_plot->replot();
+    // time_freq图跟随设置
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    time_freq_plot->replot();
     m_bin_state = UptoDate;
 }
 
@@ -191,6 +244,11 @@ int FreqPlotter::set_bin_range(int lo, int up) {
 
     freq_plot->xAxis->setRange(bin_lower, bin_upper);
     freq_plot->replot();
+
+    // time_freq图跟随设置
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    time_freq_plot->replot();
     return 1;
 }
 
@@ -218,6 +276,11 @@ int FreqPlotter::set_db_range(int lo, int up) {
     db_upper = up;
     freq_plot->yAxis->setRange(db_lower, db_upper);
     freq_plot->replot();
+
+    // time_freq图跟随设置
+    time_freq_plot->yAxis->setRange(db_lower, db_upper);
+    color_scale->setDataRange(QCPRange(db_lower, db_upper)); // 后续看看这个计算量大不大，可能会导致整个map重新算
+    time_freq_plot->replot();
     return 1;
 }
 
