@@ -22,6 +22,12 @@ public:
     explicit FreqPlotter(QWidget *parent = nullptr, bool isComplex = false);
     void setPlotMode(PlotMode mode);
     void togglePlotMode();
+    int set_bin_range(int lo, int up);
+    int set_bin_lower(int lo);
+    int set_bin_upper(int up);
+    int set_db_range(int lo, int up);
+    int set_db_lower(int lo);
+    int set_db_upper(int up);
     void plot_freq(QVector<double> freq_data);
     void plot_freq(QVector<float> freq_data);
 
@@ -44,7 +50,7 @@ template <typename T>
     PlotMode m_plot_mode;
 
     // 频谱图
-    int x_step; // 绘图间隔
+    int freq_bin_step; // 频谱图bin间隔
     int m_fft_size;
 
     enum BinState {
@@ -55,6 +61,14 @@ template <typename T>
     BinState m_bin_state;
     int bin_lower; // 设置的要显示的bin下限
     int bin_upper; // 设置的要显示的bin上限
+    int db_lower;
+    int db_upper;
+
+    // TODO：加上waterfall一起调
+    //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
+    // freq时间平均，滑动窗
+    // 暂停
+    // 调节绘图速率，用来降低绘图开销的，数据不进入窗，相当于抽取
 
 
 };

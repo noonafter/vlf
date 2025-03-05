@@ -14,9 +14,8 @@ MainWindow::MainWindow(QWidget *parent)
     // 获取资源（对象）
     ui->setupUi(this);
     // ui资源
-    freqPlotter = new FreqPlotter(ui->freq_widget,true);
-    connect(ui->pushButton, &QPushButton::clicked, freqPlotter, &FreqPlotter::togglePlotMode);
-    
+    freqPlotter_ddc = new FreqPlotter(ui->widget_ddc, true);
+
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
     // 多线程对象
@@ -27,7 +26,12 @@ MainWindow::MainWindow(QWidget *parent)
         vlf_ch[i] = new VLFChannel(i);
     }
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_float_ready, freqPlotter, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(vlf_ch[0], &VLFChannel::subch_freq_float_ready, freqPlotter_ddc, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(ui->pushButton_mode_ddc, &QPushButton::clicked, freqPlotter_ddc, &FreqPlotter::togglePlotMode);
+    connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_lower);
+    connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_upper);
+    connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_lower);
+    connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_upper);
 
 //    connect(ui->comboBox_sample_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
 //            &udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged);

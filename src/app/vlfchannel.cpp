@@ -266,7 +266,7 @@ void VLFChannel::slot_business_package_enqueued() {
     std::complex<float> pack_data_cplx[256];
     for (int i = 0; i < 256; i++) {
         int32_t tmp = qToBigEndian(*reinterpret_cast<const int32_t *>((pack_data.mid(4 * i, 4).constData())));
-        pack_data_cplx[i] = (float) (tmp * 1.0 / 536870912.0); // 1<<29
+        pack_data_cplx[i] = (float) (tmp * 1.0 / 2147483648.0); // 1<<31
     }
     cbuffercf_write(chlza_inbuf, pack_data_cplx, 256);
 
@@ -359,6 +359,7 @@ void VLFChannel::slot_business_package_enqueued() {
     // 4.如果buf满，执行fft
     int fftsize_subch = 512;
     std::complex<float> *r;
+    float psd_tmp = 10*log10f(512);
     for(int i = 0; i<NUM_CH_SUB;i++){
         if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
             cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
@@ -373,10 +374,17 @@ void VLFChannel::slot_business_package_enqueued() {
 
             fftwf_execute(fplan512);
             QVector<float> freq_data(512);
+
             if(i == 3){
+
                 for (int j = 0; j < 512; j++) {
                     std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
-                    freq_data[j] = std::sqrt(std::norm(*tmp));
+                    float energy_cnt = std::norm(*tmp);
+                    if(energy_cnt <=0){
+                        freq_data[j] = -180;
+                    } else{
+                        freq_data[j] = 10*log10f(energy_cnt) - psd_tmp;
+                    }
                 }
                 emit subch_freq_float_ready(freq_data);
             }
