@@ -109,7 +109,7 @@
            <number>160</number>
           </property>
          </widget>
-         <widget class="RangeSlider" name="range_slider_db" native="true">
+         <widget class="RangeSlider" name="range_slider_db_ddc" native="true">
           <property name="geometry">
            <rect>
             <x>60</x>
@@ -119,7 +119,7 @@
            </rect>
           </property>
          </widget>
-         <widget class="RangeSlider" name="range_slider_bin" native="true">
+         <widget class="RangeSlider" name="range_slider_bin_ddc" native="true">
           <property name="geometry">
            <rect>
             <x>60</x>
@@ -132,7 +132,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QWidget" name="widget_ddc" native="true"/>
+        <widget class="FreqPlotter" name="freqPlotter_ddc" native="true"/>
        </item>
       </layout>
      </widget>
@@ -210,6 +210,12 @@
    <class>RangeSlider</class>
    <extends>QWidget</extends>
    <header location="global">rangeslider.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>FreqPlotter</class>
+   <extends>QWidget</extends>
+   <header location="global">freqplotter.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

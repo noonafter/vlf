@@ -7,40 +7,29 @@
 #include "freqplotter.h"
 
 
-
-FreqPlotter::FreqPlotter(QWidget *parent, bool isComplex) : QWidget(parent) {
-    qRegisterMetaType<QVector<float>>("QVector<double>");
+FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
+    qRegisterMetaType<QVector<double>>("QVector<double>");
     qRegisterMetaType<QVector<float>>("QVector<float>");
 
-    container = parent;
-    if(container == nullptr){
-        // 将所有属性设置为无效
-
-        return;
-    }
-
     // 默认实数，打开half_range
-    if (isComplex) {
-        half_range = false;
-        shift_range = true;
-    } else {
-        half_range = true;
-        shift_range = false; // 实数时shift_range无效
-    }
+    half_range = true;
+    shift_range = true; // 实数时shift_range无效
     freq_bin_step = 1;
     m_fft_size = 512;
     m_bin_state = NeedUpdate;
     bin_lower = 0;
     bin_upper = 0;
-    db_lower = -160;
-    db_upper = 10;
+    db_minimum = -160;
+    db_maximum = 10;
+    db_lower = db_minimum;
+    db_upper = db_maximum;
     map_xsize = 1600;
     map_ysize = 100;
     time_lower = 0;
     time_upper = map_ysize;
 
     // 获取资源
-    layout = new QVBoxLayout(container);
+    layout = new QVBoxLayout(this);
     freq_plot = new QCustomPlot(this);
     time_freq_plot = new QCustomPlot(this);
     color_scale = new QCPColorScale(time_freq_plot);
@@ -50,7 +39,7 @@ FreqPlotter::FreqPlotter(QWidget *parent, bool isComplex) : QWidget(parent) {
     // 对容器进行布局
     layout->addWidget(freq_plot);
     layout->addWidget(time_freq_plot);
-    container->setLayout(layout);
+    this->setLayout(layout);
 
     // 默认显示频谱图
     setPlotMode(FreqMode);
@@ -94,11 +83,7 @@ void FreqPlotter::init_time_freq_plot() {
     color_map->data()->setSize(map_xsize, map_ysize);
     map_data = color_map->data()->get_mdata(); // 必须在setsize之后
     color_map->setInterpolate(true);
-    color_map->data()->fill(-160); // moving to QCPColorMapData constructor can speed up launch
-
-
-
-
+    color_map->data()->fill(db_minimum); // moving to QCPColorMapData constructor can speed up launch
 
 
     time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
@@ -158,7 +143,7 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
     } else if(m_plot_mode == TimeFreqMode){
 
         // 如果在涉及全图重新解算的操作（如color scale重设范围），能够接受原有画面消失，可以注释这一行，加快绘图速度
-        // 所有data向后移动一行，空出第一行，
+        // 所有data向后移动一行，空出第一行
         memmove(map_data + map_xsize, map_data, map_xsize * (map_ysize - 1) * sizeof(map_data[0]));
 
         // 先确定的map_xsize
@@ -167,6 +152,7 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
             idx_vec = lround(bin_lower + i * time_freq_bin_step);
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
             map_data[i] = static_cast<double>(freq_data[idx_vec]);
+//            color_map->data()->setCell(i, 0, static_cast<double>(freq_data[idx_vec]));
         }
         color_map->updateMapImageTranslate();
         time_freq_plot->replot();
@@ -265,11 +251,11 @@ int FreqPlotter::set_db_range(int lo, int up) {
         return 0;
     }
 
-    if(lo < -160){
-        lo = -160;
+    if(lo < db_minimum){
+        lo = db_minimum;
     }
-    if(up > 40){
-        up = 40;
+    if(up > db_maximum){
+        up = db_maximum;
     }
 
     db_lower = lo;

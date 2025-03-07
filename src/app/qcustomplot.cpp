@@ -26873,12 +26873,10 @@ const int lineCount = valueSize;
 const int rowCount = keySize;
 
 //vertically translate image pixels
-for (int y = 1; y < lineCount; ++y)
-{
-    for (int x = 0; x < rowCount; ++x)
-    {
-        localMapImage->setPixel(x, y-1, localMapImage->pixel(x, y));
-    }
+for (int y = 1; y < lineCount; ++y) {
+    const uchar *sourceLine = localMapImage->constScanLine(y);
+    uchar *targetLine = localMapImage->scanLine(y - 1);
+    memmove(targetLine, sourceLine, localMapImage->bytesPerLine());
 }
 
 for (int line=0; line<1; ++line)
@@ -26896,12 +26894,10 @@ const int lineCount = keySize;
 const int rowCount = valueSize;
 
 //horizontally translate image pixels
-for (int x = rowCount-1; x > 0; --x)
-{
-    for (int y = 0; y < lineCount; ++y)
-    {
-        localMapImage->setPixel(x, y, localMapImage->pixel(x-1, y));
-    }
+int bytesPerPixel = localMapImage->depth() / 8;
+for (int y = 0; y < lineCount; ++y) {
+    uchar *line = localMapImage->scanLine(y);
+    memmove(line + bytesPerPixel, line, (rowCount - 1) * bytesPerPixel);
 }
 
 //colorize to a QRgb* pixels[rowCount]
