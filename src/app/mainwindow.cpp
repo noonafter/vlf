@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->range_slider_db_ddc->SetRange(-160, 10);
     ui->range_slider_bin_ddc->SetRange(-300,300);
-    
+
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
     // 多线程对象

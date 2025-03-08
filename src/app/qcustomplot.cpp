@@ -26114,6 +26114,20 @@ mDataModified = true;
 qDebug() << Q_FUNC_INFO << "index out of bounds:" << keyIndex << valueIndex;
 }
 
+void QCPColorMapData::setCellLatestRow(int keyIndex, double z)
+{
+if (keyIndex >= 0 && keyIndex < mKeySize)
+{
+mData[keyIndex] = z;
+} else
+qDebug() << Q_FUNC_INFO << "index out of bounds:" << keyIndex;
+}
+
+void QCPColorMapData::shiftRowsBackward(int shiftCount)
+{
+memmove(mData + shiftCount * mKeySize, mData, mKeySize * (mValueSize - shiftCount) * sizeof(mData[0]));
+}
+
 /*!
   Sets the alpha of the color map cell given by \a keyIndex and \a valueIndex to \a alpha. A value
   of 0 for \a alpha results in a fully transparent cell, and a value of 255 results in a fully

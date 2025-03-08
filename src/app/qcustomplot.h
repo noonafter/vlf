@@ -6059,9 +6059,8 @@ public:
     void cellToCoord(int keyIndex, int valueIndex, double *key, double *value) const;
 
     // self define
-    inline double *get_mdata() {
-        return mData;
-    }
+    void setCellLatestRow(int keyIndex, double z);
+    void shiftRowsBackward(int shiftCount = 1);
 
 protected:
     // property members:
@@ -6124,14 +6123,6 @@ public:
     virtual QCPRange getValueRange(bool &foundRange, QCP::SignDomain inSignDomain=QCP::sdBoth, const QCPRange &inKeyRange=QCPRange()) const Q_DECL_OVERRIDE;
 
     // self define
-    inline void update_map_image() {
-        updateMapImage();
-    }
-
-    inline void set_image_invalidated(){
-        mMapImageInvalidated = true;
-    }
-
     void updateMapImageTranslate();
 
 signals:

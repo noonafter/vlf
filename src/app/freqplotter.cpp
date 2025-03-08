@@ -81,8 +81,7 @@ void FreqPlotter::init_time_freq_plot() {
     // 设置color map
     color_map->setColorScale(color_scale);
     color_map->data()->setSize(map_xsize, map_ysize);
-    map_data = color_map->data()->get_mdata(); // 必须在setsize之后
-    color_map->setInterpolate(true);
+    color_map->setInterpolate(false);
     color_map->data()->fill(db_minimum); // moving to QCPColorMapData constructor can speed up launch
 
 
@@ -144,15 +143,14 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
 
         // 如果在涉及全图重新解算的操作（如color scale重设范围），能够接受原有画面消失，可以注释这一行，加快绘图速度
         // 所有data向后移动一行，空出第一行
-        memmove(map_data + map_xsize, map_data, map_xsize * (map_ysize - 1) * sizeof(map_data[0]));
+        color_map->data()->shiftRowsBackward(1);
 
         // 先确定的map_xsize
         double time_freq_bin_step = double(bin_count)/ map_xsize;
         for (int i = 0; i < map_xsize; i++) {
             idx_vec = lround(bin_lower + i * time_freq_bin_step);
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
-            map_data[i] = static_cast<double>(freq_data[idx_vec]);
-//            color_map->data()->setCell(i, 0, static_cast<double>(freq_data[idx_vec]));
+            color_map->data()->setCellLatestRow(i, static_cast<double>(freq_data[idx_vec]));
         }
         color_map->updateMapImageTranslate();
         time_freq_plot->replot();
