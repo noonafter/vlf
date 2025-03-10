@@ -14,6 +14,10 @@
 #include "liquid.h"
 #include "fftw3.h"
 
+#define MAX_FFTSIZE_CH (65536)
+#define MIN_FFTSIZE_CH (1024)
+#define NUM_FFTPLANS_CH (7)
+
 
 
 using namespace moodycamel;
@@ -34,7 +38,7 @@ public slots:
     void slot_business_package_enqueued();
 
 signals:
-    void subch_freq_float_ready(QVector<float> freq_data);
+    void subch_freq_ddc_ready(QVector<float> freq_data);
 
 private:
 
@@ -98,6 +102,9 @@ private:
     fftwf_plan fplan512;
     QVector<cbuffercf> fft_outbuf;
 
+    float *if_inbuf;
+    fftwf_complex *if_outbuf;
+    fftwf_plan if_fplans[NUM_FFTPLANS_CH];
 
 
     void roundSeconds(QDateTime &dateTime);

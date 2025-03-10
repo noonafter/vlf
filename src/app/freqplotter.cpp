@@ -11,9 +11,9 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     qRegisterMetaType<QVector<double>>("QVector<double>");
     qRegisterMetaType<QVector<float>>("QVector<float>");
 
-    // 默认复数，关闭half_range，开启shift_range
+    // 默认顺序显示全频谱，即关闭half_range，关闭shift_range
     half_range = false;
-    shift_range = true;
+    shift_range = false;
     freq_bin_step = 1;
     m_fft_size = 512;
     m_bin_state = NeedUpdate;
@@ -165,7 +165,7 @@ void FreqPlotter::update_bin_state() {
         return;
     }
 
-    int mid = (m_fft_size - 1) >> 1;
+    int mid = m_fft_size >> 1;
     if (half_range) {
         bin_lower = shift_range ? mid + 1 : 0;
         bin_upper = shift_range ? m_fft_size - 1 : mid;
@@ -192,7 +192,7 @@ int FreqPlotter::set_bin_range(int lo, int up) {
 
     // 得到当前情况下的bin的端点
     int left, right;
-    int mid = (m_fft_size - 1) >> 1;
+    int mid = m_fft_size >> 1;
     if (half_range) {
         left = shift_range ? mid + 1 : 0;
         right = shift_range ? m_fft_size - 1 : mid;
@@ -267,4 +267,20 @@ int FreqPlotter::set_db_lower(int lo) {
 
 int FreqPlotter::set_db_upper(int up) {
     return set_db_range(db_lower,up);
+}
+
+bool FreqPlotter::get_half_range() const {
+    return half_range;
+}
+
+void FreqPlotter::set_half_range(bool half) {
+    half_range = half;
+}
+
+bool FreqPlotter::get_shift_range() const {
+    return shift_range;
+}
+
+void FreqPlotter::set_shift_range(bool shift) {
+    shift_range = shift;
 }

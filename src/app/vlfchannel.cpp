@@ -94,9 +94,16 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
     for (int i = 0; i < NUM_CH_SUB; i++) {
         fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
     }
-    in512 = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * 512);
-    out512 = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * 512);
+    in512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * 512);
+    out512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * 512);
     fplan512 = fftwf_plan_dft_1d(512, in512, out512, FFTW_FORWARD, FFTW_MEASURE);
+
+    if_inbuf = (float *) fftwf_malloc(sizeof(float) * MAX_FFTSIZE_CH);
+    if_outbuf = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * (MAX_FFTSIZE_CH / 2 + 1));
+    for (int i = 0; i < NUM_FFTPLANS_CH; i++) {
+        int length = MIN_FFTSIZE_CH << i; // 1024,2048,4096,...
+        if_fplans[i] = fftwf_plan_dft_r2c_1d(length, if_inbuf, if_outbuf, FFTW_MEASURE);
+    }
 
 }
 
@@ -105,6 +112,12 @@ VLFChannel::~VLFChannel() {
     fftwf_free(in512);
     fftwf_free(out512);
     fftwf_destroy_plan(fplan512);
+
+    fftwf_free(if_inbuf);
+    fftwf_free(if_outbuf);
+    for (int i = 0; i < NUM_FFTPLANS_CH; i++) {
+        fftwf_destroy_plan(if_fplans[i]);
+    }
 
     firpfbch2_crcf_destroy(chlza);
     cbuffercf_destroy(chlza_inbuf);
@@ -386,7 +399,7 @@ void VLFChannel::slot_business_package_enqueued() {
                         freq_data[j] = 10*log10f(energy_cnt) - psd_tmp;
                     }
                 }
-                emit subch_freq_float_ready(freq_data);
+                emit subch_freq_ddc_ready(freq_data);
             }
 
 

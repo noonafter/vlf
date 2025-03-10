@@ -28,6 +28,10 @@ public:
     int set_db_range(int lo, int up);
     int set_db_lower(int lo);
     int set_db_upper(int up);
+    bool get_half_range() const;
+    void set_half_range(bool half);
+    bool get_shift_range() const;
+    void set_shift_range(bool shift);
     void plot_freq(QVector<double> freq_data);
     void plot_freq(QVector<float> freq_data);
     // 后续考虑加上直接float *和size的plot版本
@@ -40,12 +44,6 @@ private:
         UptoDate,   // bin边界跟随fft_size变化，但已更新
         ManualSet   // bin边界手动设置，忽略fft_size变化
     };
-
-    void init_freq_plot();
-    void init_time_freq_plot();
-template <typename T>
-    void plot_freq_impl(QVector<T> freq_data);
-    void update_bin_state();
 
     bool half_range;
     bool shift_range;
@@ -62,7 +60,7 @@ template <typename T>
 
     // 频谱图
     int freq_bin_step; // 频谱图bin间隔
-    int m_fft_size;
+    int m_fft_size; // 输入数据的大小，可能是fft_size，也可能是fft_size/2
 
 
     BinState m_bin_state;
@@ -84,7 +82,11 @@ template <typename T>
     // 调节绘图速率，用来降低绘图开销的，数据不进入窗，相当于抽取
     // waterfall加色卡
 
-
+    void init_freq_plot();
+    void init_time_freq_plot();
+    template <typename T>
+    void plot_freq_impl(QVector<T> freq_data);
+    void update_bin_state();
 };
 
 

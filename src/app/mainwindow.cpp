@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->range_slider_db_ddc->SetRange(-160, 10);
     ui->range_slider_bin_ddc->SetRange(-300,300);
+    ui->freqPlotter_ddc->set_shift_range(true);
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
@@ -25,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
         vlf_ch[i] = new VLFChannel(i);
     }
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_float_ready, ui->freqPlotter_ddc, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, ui->freqPlotter_ddc, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
     connect(ui->pushButton_mode_ddc, &QPushButton::clicked, ui->freqPlotter_ddc, &FreqPlotter::togglePlotMode);
     connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_lower);
     connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_upper);
