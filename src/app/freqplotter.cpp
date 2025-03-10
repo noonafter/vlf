@@ -20,7 +20,7 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     bin_lower = 0;
     bin_upper = 0;
     db_minimum = -160;
-    db_maximum = 10;
+    db_maximum = 20;
     db_lower = db_minimum;
     db_upper = db_maximum;
     map_xsize = 1600;
@@ -47,6 +47,10 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     // 完成画布初始化
     init_freq_plot();
     init_time_freq_plot();
+
+    timer_plot.start();
+    last_plot_time = timer_plot.elapsed() - 1000;
+    plot_internal = 33;
 }
 
 FreqPlotter::~FreqPlotter() {
@@ -59,7 +63,12 @@ void FreqPlotter::init_freq_plot() {
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
     freq_plot->yAxis->setRange(db_lower,db_upper);
+
+    // 允许x轴拖拽和缩放
     freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
+    freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    connect(freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
 void FreqPlotter::init_time_freq_plot() {
@@ -81,11 +90,15 @@ void FreqPlotter::init_time_freq_plot() {
     // 设置color map
     color_map->setColorScale(color_scale);
     color_map->data()->setSize(map_xsize, map_ysize);
-    color_map->setInterpolate(false);
+    color_map->setInterpolate(true);
     color_map->data()->fill(db_minimum); // moving to QCPColorMapData constructor can speed up launch
 
 
+    // 允许x轴拖拽和缩放
     time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    time_freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
+    time_freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    connect(time_freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
 void FreqPlotter::setPlotMode(FreqPlotter::PlotMode mode) {
@@ -111,6 +124,14 @@ void FreqPlotter::plot_freq(QVector<float> freq_data) {
 
 template<typename T>
 void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
+
+    // 数据推送速度不超过刷新率
+    cnt_plot_time = timer_plot.elapsed();
+    if(cnt_plot_time - last_plot_time < plot_internal){
+        return;
+    }
+    last_plot_time = cnt_plot_time;
+
     int fft_size = freq_data.size();
     // fft_size变化，且为默认情况边界跟随fft_size变化，需要更新bin_lower和bin_upper
     if(fft_size != m_fft_size && m_bin_state != ManualSet){
@@ -146,7 +167,7 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
         color_map->data()->shiftRowsBackward(1);
 
         // 先确定的map_xsize
-        double time_freq_bin_step = double(bin_count)/ map_xsize;
+        double time_freq_bin_step = double(bin_count-1)/ map_xsize;
         for (int i = 0; i < map_xsize; i++) {
             idx_vec = lround(bin_lower + i * time_freq_bin_step);
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
@@ -192,14 +213,7 @@ int FreqPlotter::set_bin_range(int lo, int up) {
 
     // 得到当前情况下的bin的端点
     int left, right;
-    int mid = m_fft_size >> 1;
-    if (half_range) {
-        left = shift_range ? mid + 1 : 0;
-        right = shift_range ? m_fft_size - 1 : mid;
-    } else {
-        left = shift_range ? mid + 1 - m_fft_size : 0;
-        right = shift_range ? mid : m_fft_size - 1;
-    }
+    get_bin_range_limit(left, right);
 
     // 设置值不能超过端点，否则截断
     if (lo < left) {
@@ -283,4 +297,47 @@ bool FreqPlotter::get_shift_range() const {
 
 void FreqPlotter::set_shift_range(bool shift) {
     shift_range = shift;
+}
+
+int FreqPlotter::get_fft_size() const {
+    return m_fft_size;
+}
+
+void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
+    QCPRange clampedRange = newRange;
+
+    // 得到当前情况下的bin的端点
+    int left, right;
+    get_bin_range_limit(left, right);
+
+    // 限制下限不低于 left
+    if (clampedRange.lower < left) {
+        clampedRange.lower = left;
+        clampedRange.upper = clampedRange.size() + left;
+    }
+
+    // 限制上限不高于 right
+    if (clampedRange.upper > right) {
+        clampedRange.upper = right;
+        clampedRange.lower = right - clampedRange.size();
+    }
+
+    // 如果范围需要修正，则更新
+    if (clampedRange != newRange) {
+        freq_plot->xAxis->setRange(clampedRange);
+        time_freq_plot->xAxis->setRange(clampedRange);
+        freq_plot->replot();
+        time_freq_plot->replot();
+    }
+}
+
+void FreqPlotter::get_bin_range_limit(int &left, int &right) {
+    int mid = m_fft_size >> 1;
+    if (half_range) {
+        left = shift_range ? mid + 1 : 0;
+        right = shift_range ? m_fft_size - 1 : mid;
+    } else {
+        left = shift_range ? mid + 1 - m_fft_size : 0;
+        right = shift_range ? mid : m_fft_size - 1;
+    }
 }

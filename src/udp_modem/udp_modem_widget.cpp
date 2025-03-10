@@ -96,7 +96,7 @@ udp_modem_widget::udp_modem_widget(QWidget *parent) :
     connect(ui->pushButton_start, &QPushButton::clicked, this,[=](){
         ui->pushButton_start->setEnabled(false);
         ui->pushButton_stop->setEnabled(true);
-        bussiness_tx_timer->start(256); // 256ms : 192 business package
+        bussiness_tx_timer->start(64); // 256ms : 192 business package, 64ms:96 package
         status_tx_timer->start(300000);
     });
     // 队列连接

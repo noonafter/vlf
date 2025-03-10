@@ -179,7 +179,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QWidget" name="widget_if" native="true">
+        <widget class="FreqPlotter" name="widget_if" native="true">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
            <horstretch>0</horstretch>

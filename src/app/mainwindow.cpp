@@ -33,13 +33,20 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_lower);
     connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_upper);
 
-    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->freqPlotter_ddc,&FreqPlotter::set_bin_lower);
-    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,ui->freqPlotter_ddc,&FreqPlotter::set_bin_upper);
-    connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->freqPlotter_ddc,&FreqPlotter::set_db_lower);
-    connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->freqPlotter_ddc,&FreqPlotter::set_db_upper);
 
-//    connect(ui->comboBox_sample_rate, QOverload<const QString &>::of(&QComboBox::currentIndexChanged), this,
-//            &udp_modem_widget::slot_comboBox_sample_rate_currentIndexChanged);
+    connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::togglePlotMode);
+    connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_db_lower);
+    connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_db_upper);
+//    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_bin_lower);
+//    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_bin_upper);
+
+    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,[=](int lo){
+        ui->widget_if->set_bin_lower(lo*ui->widget_if->get_fft_size()/300);
+    });
+    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,[=](int up){
+        ui->widget_if->set_bin_upper(up*ui->widget_if->get_fft_size()/300);
+    });
     // 处理业务逻辑，保证线程安全
     // 具体业务逻辑：
     // vlf_receiver移动到recv_thread线程，保证协议数据包接收和分发单独使用一个线程，不会卡住主线程

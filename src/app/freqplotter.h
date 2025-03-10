@@ -32,6 +32,7 @@ public:
     void set_half_range(bool half);
     bool get_shift_range() const;
     void set_shift_range(bool shift);
+    int get_fft_size() const;
     void plot_freq(QVector<double> freq_data);
     void plot_freq(QVector<float> freq_data);
     // 后续考虑加上直接float *和size的plot版本
@@ -61,8 +62,7 @@ private:
     // 频谱图
     int freq_bin_step; // 频谱图bin间隔
     int m_fft_size; // 输入数据的大小，可能是fft_size，也可能是fft_size/2
-
-
+    
     BinState m_bin_state;
     int bin_lower; // 设置的要显示的bin下限
     int bin_upper; // 设置的要显示的bin上限
@@ -75,11 +75,15 @@ private:
     int time_lower;
     int time_upper;
 
+    QElapsedTimer timer_plot;
+    qint64 last_plot_time;
+    qint64 cnt_plot_time;
+    int plot_internal;
+
     // TODO：加上waterfall一起调
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
     // freq时间平均，滑动窗
     // 暂停
-    // 调节绘图速率，用来降低绘图开销的，数据不进入窗，相当于抽取
     // waterfall加色卡
 
     void init_freq_plot();
@@ -87,6 +91,8 @@ private:
     template <typename T>
     void plot_freq_impl(QVector<T> freq_data);
     void update_bin_state();
+    void clamp_xaxis_range(const QCPRange &newRange);
+    void get_bin_range_limit(int &left, int &right);
 };
 
 

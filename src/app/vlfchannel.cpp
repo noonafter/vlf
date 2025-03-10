@@ -98,6 +98,7 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
     out512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * 512);
     fplan512 = fftwf_plan_dft_1d(512, in512, out512, FFTW_FORWARD, FFTW_MEASURE);
 
+    ch_inbuf = cbufferf_create(MAX_FFTSIZE_CH);
     if_inbuf = (float *) fftwf_malloc(sizeof(float) * MAX_FFTSIZE_CH);
     if_outbuf = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * (MAX_FFTSIZE_CH / 2 + 1));
     for (int i = 0; i < NUM_FFTPLANS_CH; i++) {
@@ -113,12 +114,6 @@ VLFChannel::~VLFChannel() {
     fftwf_free(out512);
     fftwf_destroy_plan(fplan512);
 
-    fftwf_free(if_inbuf);
-    fftwf_free(if_outbuf);
-    for (int i = 0; i < NUM_FFTPLANS_CH; i++) {
-        fftwf_destroy_plan(if_fplans[i]);
-    }
-
     firpfbch2_crcf_destroy(chlza);
     cbuffercf_destroy(chlza_inbuf);
     for (int i = 0; i < NUM_CHLZB; i++) {
@@ -128,6 +123,13 @@ VLFChannel::~VLFChannel() {
     for (int i = 0; i < NUM_CH_SUB; i++) {
         cbuffercf_destroy(fft_inbuf[i]);
     }
+
+    fftwf_free(if_inbuf);
+    fftwf_free(if_outbuf);
+    for (int i = 0; i < NUM_FFTPLANS_CH; i++) {
+        fftwf_destroy_plan(if_fplans[i]);
+    }
+    cbufferf_destroy(ch_inbuf);
 
     qDebug() << "id is " << QThread::currentThreadId();
     if (this) {
@@ -186,7 +188,7 @@ void VLFChannel::slot_business_package_enqueued() {
 
     uint32_t cnt_udp_idx = qToBigEndian(*reinterpret_cast<const uint32_t *>((package.mid(0, 4).constData())));
     // 如果udp包号小于上一次的号且号码邻近，说明这一包晚到了，直接丢掉
-    if (cnt_udp_idx <= last_udp_idx && last_udp_idx - cnt_udp_idx < 1 << 20) {
+    if (cnt_udp_idx <= last_udp_idx && last_udp_idx - cnt_udp_idx < 1 << 10) {
         qDebug() << "cnt_udp_idx <= last_udp_idx false";
         return;
     }
@@ -276,12 +278,39 @@ void VLFChannel::slot_business_package_enqueued() {
 
     // 尝试不缓存，收到1包1024字节，256sample即进行处理
     // 1. 将数据转为complex<float>
-    std::complex<float> pack_data_cplx[256];
     for (int i = 0; i < 256; i++) {
         int32_t tmp = qToBigEndian(*reinterpret_cast<const int32_t *>((pack_data.mid(4 * i, 4).constData())));
-        pack_data_cplx[i] = (float) (tmp * 1.0 / 2147483648.0); // 1<<31
+        float tmp_float = (float) (tmp * 1.0 / 2147483648.0); // 1<<31
+        cbuffercf_push(chlza_inbuf, tmp_float); // float -> complex<float>
+        cbufferf_push(ch_inbuf, tmp_float);
     }
-    cbuffercf_write(chlza_inbuf, pack_data_cplx, 256);
+
+
+    int fft_size_idx = 2;
+    if(cbufferf_size(ch_inbuf) >= 65536){
+        unsigned int num_read;
+        float *r;
+        cbufferf_read(ch_inbuf, MIN_FFTSIZE_CH << fft_size_idx, &r, &num_read);
+        memmove(if_inbuf, r, num_read * sizeof(float));
+
+        // todo：加窗
+        fftwf_execute(if_fplans[fft_size_idx]);
+
+        int half_size = (MIN_FFTSIZE_CH << fft_size_idx)/2+1;
+        QVector<float> freq_data(half_size);
+        float psd_tmp = 10*log10f(MIN_FFTSIZE_CH << fft_size_idx);
+        for (int j = 0; j < half_size; j++) {
+            std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(if_outbuf[j]);
+            float energy_cnt = std::norm(*tmp);
+            if(energy_cnt <=0){
+                freq_data[j] = -180;
+            } else{
+                freq_data[j] = 10*log10f(energy_cnt) - psd_tmp;
+            }
+        }
+        emit subch_freq_if_ready(freq_data);
+        cbufferf_release(ch_inbuf, num_read);
+    }
 
     // 2. 经过第一级channelizer，输入192KHz，输出24KHz
     // 每次输入8个点，输出16个点。共执行32次，每个通道32点

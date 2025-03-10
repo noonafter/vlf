@@ -204,7 +204,7 @@ void udp_modem_worker::udp_tx_business() {
     uint8_t second,minute,hour;
 
     int idx_package = 0;
-    int num_package = fsa_ch[0] * 1 * 4 * 256 / 1000 / 1024; // 需要跟随采样率重新计算
+    int num_package = fsa_ch[0] * 1 * 4 * 64 / 1000 / 1024; // 需要跟随采样率重新计算
     while (idx_package < num_package) {
 
         QDateTime cnt_time = QDateTime::currentDateTime();

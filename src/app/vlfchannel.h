@@ -39,6 +39,7 @@ public slots:
 
 signals:
     void subch_freq_ddc_ready(QVector<float> freq_data);
+    void subch_freq_if_ready(QVector<float> freq_data);
 
 private:
 
@@ -102,6 +103,7 @@ private:
     fftwf_plan fplan512;
     QVector<cbuffercf> fft_outbuf;
 
+    cbufferf ch_inbuf;
     float *if_inbuf;
     fftwf_complex *if_outbuf;
     fftwf_plan if_fplans[NUM_FFTPLANS_CH];
