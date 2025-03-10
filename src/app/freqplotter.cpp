@@ -11,9 +11,9 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     qRegisterMetaType<QVector<double>>("QVector<double>");
     qRegisterMetaType<QVector<float>>("QVector<float>");
 
-    // 默认实数，打开half_range
-    half_range = true;
-    shift_range = true; // 实数时shift_range无效
+    // 默认复数，关闭half_range，开启shift_range
+    half_range = false;
+    shift_range = true;
     freq_bin_step = 1;
     m_fft_size = 512;
     m_bin_state = NeedUpdate;
@@ -141,8 +141,8 @@ void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
         freq_plot->replot();
     } else if(m_plot_mode == TimeFreqMode){
 
-        // 如果在涉及全图重新解算的操作（如color scale重设范围），能够接受原有画面消失，可以注释这一行，加快绘图速度
         // 所有data向后移动一行，空出第一行
+        // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度
         color_map->data()->shiftRowsBackward(1);
 
         // 先确定的map_xsize
@@ -165,20 +165,16 @@ void FreqPlotter::update_bin_state() {
         return;
     }
 
+    int mid = (m_fft_size - 1) >> 1;
     if (half_range) {
-        // 只画前半，索引为0:(N-1)/2;
-        bin_lower = 0;
-        bin_upper = (m_fft_size - 1) / 2;
-    } else if (shift_range) {
-        // 画全部，先画后半，索引为(N-1)/2+1-N:-1 和 0:(N-1)/2
-        bin_lower = (m_fft_size - 1) / 2 + 1 - m_fft_size;
-        bin_upper = (m_fft_size - 1) / 2;
+        bin_lower = shift_range ? mid + 1 : 0;
+        bin_upper = shift_range ? m_fft_size - 1 : mid;
     } else {
-        // 画全部，索引为0:(N-1)
-        bin_lower = 0;
-        bin_upper = m_fft_size - 1;
+        bin_lower = shift_range ? mid + 1 - m_fft_size : 0;
+        bin_upper = shift_range ? mid : m_fft_size - 1;
     }
-    // 最终索引只会在(N-1)/2+1-N:-1 和 0:(N-1)
+
+    // 最终索引只会在(N-1)/2+1-N:(N-1)
     freq_plot->xAxis->setRange(bin_lower, bin_upper);
     freq_plot->replot();
     // time_freq图跟随设置
@@ -189,30 +185,27 @@ void FreqPlotter::update_bin_state() {
 }
 
 
-
 int FreqPlotter::set_bin_range(int lo, int up) {
-    if(lo >= up){
+    if (lo >= up) {
         return 0;
     }
 
     // 得到当前情况下的bin的端点
-    int left,right;
-    if(half_range){
-        left = 0;
-        right = (m_fft_size - 1) / 2;
-    } else if(shift_range){
-        left = (m_fft_size - 1) / 2 + 1 - m_fft_size;
-        right = (m_fft_size - 1) / 2;
-    } else{
-        left = 0;
-        right = m_fft_size - 1;
+    int left, right;
+    int mid = (m_fft_size - 1) >> 1;
+    if (half_range) {
+        left = shift_range ? mid + 1 : 0;
+        right = shift_range ? m_fft_size - 1 : mid;
+    } else {
+        left = shift_range ? mid + 1 - m_fft_size : 0;
+        right = shift_range ? mid : m_fft_size - 1;
     }
 
     // 设置值不能超过端点，否则截断
-    if(lo < left){
+    if (lo < left) {
         lo = left;
     }
-    if(up > right){
+    if (up > right) {
         up = right;
     }
 
@@ -222,7 +215,7 @@ int FreqPlotter::set_bin_range(int lo, int up) {
     m_bin_state = ManualSet;
 
     // 检查是否到达两端端点，如果是，转为自动模式
-    if(bin_lower == left && bin_upper == right){
+    if (bin_lower == left && bin_upper == right) {
         m_bin_state = UptoDate;
     }
 
