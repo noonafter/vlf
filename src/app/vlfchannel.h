@@ -38,8 +38,8 @@ public slots:
     void slot_business_package_enqueued();
 
 signals:
-    void subch_freq_ddc_ready(QVector<float> freq_data);
-    void subch_freq_if_ready(QVector<float> freq_data);
+    void subch_freq_ddc_ready(const QVector<float>& freq_data);
+    void subch_freq_if_ready(const QVector<float>& freq_data);
 
 private:
 

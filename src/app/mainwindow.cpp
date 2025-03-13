@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
         vlf_ch[i] = new VLFChannel(i);
     }
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, ui->freqPlotter_ddc, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, ui->freqPlotter_ddc, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
     connect(ui->pushButton_mode_ddc, &QPushButton::clicked, ui->freqPlotter_ddc, &FreqPlotter::togglePlotMode);
     connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_lower);
     connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_upper);
@@ -34,7 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_upper);
 
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<QVector<float>>::of(&FreqPlotter::plot_freq));
+    connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
     connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::togglePlotMode);
     connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_db_lower);
     connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_db_upper);

@@ -27,6 +27,7 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     map_ysize = 100;
     time_lower = 0;
     time_upper = map_ysize;
+    plot_paused = false;
 
     // 获取资源
     layout = new QVBoxLayout(this);
@@ -83,6 +84,7 @@ void FreqPlotter::init_time_freq_plot() {
     color_scale->axis()->setTickLabels(false);
     color_scale->setRangeDrag(false);
     color_scale->setRangeZoom(false);
+    color_scale->setDataRange(QCPRange(db_lower, db_upper));
     // color scale对齐边界
     time_freq_plot->axisRect()->setMarginGroup(QCP::msTop | QCP::msBottom, group);
     color_scale->setMarginGroup(QCP::msTop | QCP::msBottom, group);
@@ -113,21 +115,21 @@ void FreqPlotter::togglePlotMode() {
 
 }
 
-void FreqPlotter::plot_freq(QVector<double> freq_data) {
-    plot_freq_impl(std::move(freq_data));
+void FreqPlotter::plot_freq(const QVector<double>& freq_data) {
+    plot_freq_impl(freq_data);
 }
 
-void FreqPlotter::plot_freq(QVector<float> freq_data) {
-    plot_freq_impl(std::move(freq_data));
+void FreqPlotter::plot_freq(const QVector<float>& freq_data) {
+    plot_freq_impl(freq_data);
 }
 
 
 template<typename T>
-void FreqPlotter::plot_freq_impl(QVector<T> freq_data) {
+void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
 
     // 数据推送速度不超过刷新率
     cnt_plot_time = timer_plot.elapsed();
-    if(cnt_plot_time - last_plot_time < plot_internal){
+    if(cnt_plot_time - last_plot_time < plot_internal || plot_paused){
         return;
     }
     last_plot_time = cnt_plot_time;
@@ -186,14 +188,7 @@ void FreqPlotter::update_bin_state() {
         return;
     }
 
-    int mid = m_fft_size >> 1;
-    if (half_range) {
-        bin_lower = shift_range ? mid + 1 : 0;
-        bin_upper = shift_range ? m_fft_size - 1 : mid;
-    } else {
-        bin_lower = shift_range ? mid + 1 - m_fft_size : 0;
-        bin_upper = shift_range ? mid : m_fft_size - 1;
-    }
+    get_bin_range_limit(bin_lower, bin_upper);
 
     // 最终索引只会在(N-1)/2+1-N:(N-1)
     freq_plot->xAxis->setRange(bin_lower, bin_upper);
@@ -331,7 +326,7 @@ void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     }
 }
 
-void FreqPlotter::get_bin_range_limit(int &left, int &right) {
+void FreqPlotter::get_bin_range_limit(int &left, int &right) const {
     int mid = m_fft_size >> 1;
     if (half_range) {
         left = shift_range ? mid + 1 : 0;
@@ -339,5 +334,19 @@ void FreqPlotter::get_bin_range_limit(int &left, int &right) {
     } else {
         left = shift_range ? mid + 1 - m_fft_size : 0;
         right = shift_range ? mid : m_fft_size - 1;
+    }
+}
+
+void FreqPlotter::set_plot_paused(bool paused) {
+    plot_paused = paused;
+}
+
+void FreqPlotter::set_frame_per_second(int fps) {
+    if (fps <= 0) {
+        plot_internal = 1000; // fps最低为1
+    } else if(fps > 100){
+        plot_internal = 100;  // fps最高为100
+    } else {
+        plot_internal = 1000 / fps;
     }
 }

@@ -28,13 +28,15 @@ public:
     int set_db_range(int lo, int up);
     int set_db_lower(int lo);
     int set_db_upper(int up);
-    bool get_half_range() const;
     void set_half_range(bool half);
+    bool get_half_range() const;
     bool get_shift_range() const;
     void set_shift_range(bool shift);
     int get_fft_size() const;
-    void plot_freq(QVector<double> freq_data);
-    void plot_freq(QVector<float> freq_data);
+    void set_plot_paused(bool paused);
+    void set_frame_per_second(int fps);
+    void plot_freq(const QVector<double>& freq_data);
+    void plot_freq(const QVector<float>& freq_data);
     // 后续考虑加上直接float *和size的plot版本
 
     ~FreqPlotter() override;
@@ -55,7 +57,6 @@ private:
     QCPColorMap *color_map;
     int map_xsize;
     int map_ysize;
-    double *map_data;
     QCPMarginGroup *group;
     PlotMode m_plot_mode;
 
@@ -70,29 +71,26 @@ private:
     int db_maximum;
     int db_lower;
     int db_upper;
-
-
     int time_lower;
     int time_upper;
-
+    bool plot_paused;
     QElapsedTimer timer_plot;
     qint64 last_plot_time;
     qint64 cnt_plot_time;
-    int plot_internal;
+    int plot_internal; // ms
 
     // TODO：加上waterfall一起调
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
     // freq时间平均，滑动窗
-    // 暂停
     // waterfall加色卡
 
     void init_freq_plot();
     void init_time_freq_plot();
     template <typename T>
-    void plot_freq_impl(QVector<T> freq_data);
+    void plot_freq_impl(const QVector<T>& freq_data);
     void update_bin_state();
     void clamp_xaxis_range(const QCPRange &newRange);
-    void get_bin_range_limit(int &left, int &right);
+    void get_bin_range_limit(int &left, int &right) const;
 };
 
 
