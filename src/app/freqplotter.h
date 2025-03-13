@@ -8,8 +8,18 @@
 #include <QWidget>
 #include "qcustomplot.h"
 
-// 默认是实数信号输入，实数信号默认只画一半fft
-// 带dbm补偿的功能，默认为关闭状态
+// 支持两种模式：功率谱图（FreqMode）；瀑布图（TimeFreqMode），
+// 支持模式动态切换，两种模式均通过槽函数plot_freq(const QVector<float>& freq_data)进行绘制
+// 支持显示全部/一半频谱数据，默认显示全部数据
+// 支持上下半频谱移位，默认不移位
+// 支持刷新率动态调整及图像暂停，默认30fps
+// todo：
+// 支持色图尺寸及调色板动态调整
+// 支持频率范围及单位动态调整
+// 支持dBm范围及单位动态调整
+// 支持功率谱图横轴的频率间隔动态调整
+// 支持峰值显示，支持AB标签
+
 
 class FreqPlotter : public QWidget {
 Q_OBJECT
@@ -18,7 +28,7 @@ public:
     enum PlotMode { FreqMode, TimeFreqMode};
 
 
-// 绑定一个widget使用，作为container，同时作为parent。因此容器无法切换
+// 提升为FreqPlotter即可使用
     explicit FreqPlotter(QWidget *parent = nullptr);
     void setPlotMode(PlotMode mode);
     void togglePlotMode();
@@ -30,14 +40,14 @@ public:
     int set_db_upper(int up);
     void set_half_range(bool half);
     bool get_half_range() const;
-    bool get_shift_range() const;
     void set_shift_range(bool shift);
+    bool get_shift_range() const;
     int get_fft_size() const;
     void set_plot_paused(bool paused);
     void set_frame_per_second(int fps);
     void plot_freq(const QVector<double>& freq_data);
     void plot_freq(const QVector<float>& freq_data);
-    // 后续考虑加上直接float *和size的plot版本
+    // 后续考虑加上直接float *和size的plot版本，跨线程会有风险
 
     ~FreqPlotter() override;
 
