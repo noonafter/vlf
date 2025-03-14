@@ -281,7 +281,8 @@ void udp_modem_worker::udp_tx_business() {
                 sig_sum[j] += std_noise * randnf() + std_ch[i] * sig_ch[i][j]; // randnf() + sig_ch[i]][j] ...
             }
             // AGC
-            agc_rrrf_execute(agc, sig_sum[j], &tmp);
+//            agc_rrrf_execute(agc, sig_sum[j], &tmp);
+            tmp = sig_sum[j] / 20;
             // prepare udp byte
             sig_tx[j] = (int32_t)(tmp * pow(2,29));
 #ifdef UDP_LOCAL_BACKUP

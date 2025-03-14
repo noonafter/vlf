@@ -280,18 +280,21 @@ void VLFChannel::slot_business_package_enqueued() {
     // 1. 将数据转为complex<float>
     for (int i = 0; i < 256; i++) {
         int32_t tmp = qToBigEndian(*reinterpret_cast<const int32_t *>((pack_data.mid(4 * i, 4).constData())));
-        float tmp_float = (float) (tmp * 1.0 / 2147483648.0); // 1<<31
+        float tmp_float = (float) (tmp * (1.0 / 2147483648.0)); // 1<<31
         cbuffercf_push(chlza_inbuf, tmp_float); // float -> complex<float>
         cbufferf_push(ch_inbuf, tmp_float);
     }
 
 
-    int fft_size_idx = 2;
+    int fft_size_idx = 3;
     if(cbufferf_size(ch_inbuf) >= 65536){
         unsigned int num_read;
         float *r;
         cbufferf_read(ch_inbuf, MIN_FFTSIZE_CH << fft_size_idx, &r, &num_read);
-        memmove(if_inbuf, r, num_read * sizeof(float));
+//        memmove(if_inbuf, r, num_read * sizeof(float));
+        for(int i = 0; i < num_read; i++){
+            if_inbuf[i] = r[i] * liquid_hamming(i,num_read);
+        }
 
         // todo：加窗
         fftwf_execute(if_fplans[fft_size_idx]);
@@ -309,6 +312,12 @@ void VLFChannel::slot_business_package_enqueued() {
             }
         }
         emit subch_freq_if_ready(freq_data);
+        if(0){
+            QString wfilename = "D:\\alc\\c\\vlf\\scripts\\data_ch";
+            QFile wfile(wfilename);
+            wfile.open(QIODevice::Append);
+            wfile.write(reinterpret_cast<const char *>(r), num_read * sizeof(float));
+        }
         cbufferf_release(ch_inbuf, num_read);
     }
 
