@@ -15,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->range_slider_db_ddc->SetRange(-160, 10);
     ui->range_slider_bin_ddc->SetRange(-300,300);
     ui->freqPlotter_ddc->set_shift_range(true);
+    ui->widget_if->set_sample_frequency(96000);
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);

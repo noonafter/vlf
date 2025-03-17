@@ -15,7 +15,8 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     half_range = false;
     shift_range = false;
     freq_bin_step = 1;
-    m_fft_size = 512;
+    m_fft_size = 2;
+    m_fsa = 2;
     m_bin_state = NeedUpdate;
     bin_lower = 0;
     bin_upper = 0;
@@ -36,6 +37,7 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     color_scale = new QCPColorScale(time_freq_plot);
     color_map = new QCPColorMap(time_freq_plot->xAxis, time_freq_plot->yAxis2);
     group = new QCPMarginGroup(time_freq_plot);
+    m_ticker = QSharedPointer<FreqTicker>(new FreqTicker(this));
 
     // 对容器进行布局
     layout->addWidget(freq_plot);
@@ -60,6 +62,8 @@ FreqPlotter::~FreqPlotter() {
 
 
 void FreqPlotter::init_freq_plot() {
+    freq_plot->xAxis->setTicker(m_ticker);
+    freq_plot->xAxis->setRange(0,m_fft_size-1);
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
@@ -73,6 +77,8 @@ void FreqPlotter::init_freq_plot() {
 }
 
 void FreqPlotter::init_time_freq_plot() {
+    time_freq_plot->xAxis->setTicker(m_ticker);
+    freq_plot->xAxis->setRange(0,m_fft_size-1);
     time_freq_plot->yAxis->setRange(db_lower,db_upper);
     time_freq_plot->yAxis2->setRange(time_lower,time_upper);
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
@@ -190,11 +196,11 @@ void FreqPlotter::update_bin_state() {
 
     get_bin_range_limit(bin_lower, bin_upper);
 
-    // 最终索引只会在(N-1)/2+1-N:(N-1)
-    freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    // 最终索引只会在(N-1)/2+1-N:(N-1)，但是显示的范围要+1
+    freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
     freq_plot->replot();
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
     color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
     time_freq_plot->replot();
     m_bin_state = UptoDate;
@@ -228,11 +234,11 @@ int FreqPlotter::set_bin_range(int lo, int up) {
         m_bin_state = UptoDate;
     }
 
-    freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
     freq_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upper);
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
     color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
     time_freq_plot->replot();
     return 1;
@@ -298,6 +304,18 @@ int FreqPlotter::get_fft_size() const {
     return m_fft_size;
 }
 
+void FreqPlotter::set_fft_size( int size) {
+     m_fft_size = size;
+}
+
+double FreqPlotter::get_sample_frequency() const {
+    return m_fsa;
+}
+
+void FreqPlotter::set_sample_frequency(double fsa) {
+    m_fsa = fsa;
+}
+
 void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     QCPRange clampedRange = newRange;
 
@@ -350,3 +368,107 @@ void FreqPlotter::set_frame_per_second(int fps) {
         plot_internal = 1000 / fps;
     }
 }
+
+
+// FreqTicker实现
+FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent),m_currentStep(0){
+    setTickStepStrategy(tssMeetTickCount);
+    setTickCount(6);
+}
+
+void FreqPlotter::FreqTicker::generate(
+        const QCPRange &range,
+        const QLocale &locale,
+        QChar formatChar,
+        int precision,
+        QVector<double> &ticks,
+        QVector<double> *subTicks,
+        QVector<QString> *tickLabels)
+{
+    // 调用基类生成刻度（索引值）
+//    QCPAxisTicker::generate(range, locale, formatChar, precision, ticks, subTicks, tickLabels);
+
+//    // 计算实际频率步长（Hz）
+//    if (ticks.size() >= 2) {
+//        m_currentStep = (ticks[1] - ticks[0]) * m_parent->m_fsa / m_parent->m_fft_size; // 频率间隔
+//    } else {
+//        m_currentStep = 0;
+//    }
+
+    // Step 1: 计算实际频率范围
+    const double lowerFreq = range.lower * m_parent->m_fsa / m_parent->m_fft_size;
+    const double upperFreq = range.upper * m_parent->m_fsa / m_parent->m_fft_size;
+    const QCPRange freqRange(lowerFreq, upperFreq);
+
+    // Step 2: 计算等分步长（5个间隔生成6个刻度）
+    m_currentStep = (freqRange.upper - freqRange.lower) / 5.0;
+
+    // Step 3: 生成主刻度（频率空间）
+    ticks.clear();
+    for (int i = 0; i < 6; ++i) {
+        double freq = freqRange.lower + i * m_currentStep;
+        // 转换为索引空间
+        double index = freq * m_parent->m_fft_size / m_parent->m_fsa;
+        ticks.append(index);
+    }
+
+    // Step 4: 强制包含FFT末尾刻度（如果可见）
+    const double fsIndex = m_parent->m_fft_size;
+    if (range.contains(fsIndex) && !ticks.contains(fsIndex)) {
+        ticks.back() = fsIndex; // 替换最后一个刻度为Fs
+        m_currentStep = (upperFreq - lowerFreq) / (ticks.size() - 1); // 重新计算步长
+    }
+
+    // Step 5: 生成标签
+    if (tickLabels) {
+        tickLabels->clear();
+        for (const auto &tick : ticks) {
+            double freq = tick * m_parent->m_fsa / m_parent->m_fft_size;
+            int dynamicPrecision = 0;
+            if (m_currentStep < 1) dynamicPrecision = 1;
+            if (m_currentStep < 0.1) dynamicPrecision = 2;
+            if (m_currentStep < 0.01) dynamicPrecision = 3;
+            tickLabels->append(QString::number(freq, 'f', dynamicPrecision) + " Hz");
+        }
+    }
+
+    // Step 6: 生成子刻度（可选）
+    if (subTicks) {
+        subTicks->clear();
+        for (int i = 0; i < ticks.size() - 1; ++i) {
+            const double start = ticks[i];
+            const double end = ticks[i + 1];
+            const double substep = (end - start) / 5.0;
+            for (int j = 1; j < 5; ++j) {
+                subTicks->append(start + j * substep);
+            }
+        }
+    }
+}
+
+
+
+QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) {
+    // 根据步长动态计算小数位数
+    int dynamicPrecision = 0;
+    // 规则：步长<0.1:显示2位，步长<1:显示1位，否则0位
+    if(m_currentStep < 0.01){
+        dynamicPrecision = 3;
+    } else if (m_currentStep < 0.1) {
+        dynamicPrecision = 2;
+    } else if (m_currentStep < 1) {
+        dynamicPrecision = 1;
+    } else {
+        dynamicPrecision = 0;
+    }
+
+    // 计算频率值
+    double freq = tick * m_parent->m_fsa / m_parent->m_fft_size;
+
+    // 格式化标签（强制使用 'f' 格式，避免科学计数法）
+    return QString::number(freq, 'f', dynamicPrecision) + " Hz";
+}
+
+
+
+

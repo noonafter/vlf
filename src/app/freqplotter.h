@@ -15,7 +15,7 @@
 // 支持刷新率动态调整及图像暂停，默认30fps
 //
 // todo：
-// 支持频率轴范围及单位动态调整
+// 支持频率轴范围及显示精度动态调整
 // 支持频率轴缩放和拖拽
 // 支持dBm范围及单位动态调整
 // 支持功率谱图频率间隔动态调整
@@ -40,11 +40,14 @@ public:
     int set_db_range(int lo, int up);
     int set_db_lower(int lo);
     int set_db_upper(int up);
-    void set_half_range(bool half);
     bool get_half_range() const;
-    void set_shift_range(bool shift);
+    void set_half_range(bool half);
     bool get_shift_range() const;
+    void set_shift_range(bool shift);
     int get_fft_size() const;
+    void set_fft_size( int size);
+    double get_sample_frequency() const;
+    void set_sample_frequency(double fsa);
     void set_plot_paused(bool paused);
     void set_frame_per_second(int fps);
     void plot_freq(const QVector<double>& freq_data);
@@ -60,6 +63,20 @@ private:
         ManualSet   // bin边界手动设置，忽略fft_size变化
     };
 
+
+    class FreqTicker : public QCPAxisTicker {
+    public:
+        explicit FreqTicker(const FreqPlotter* parent);
+    protected:
+        // 重写 generate 以捕获当前刻度步长
+        void generate(const QCPRange &range, const QLocale &locale, QChar formatChar, int precision, QVector<double> &ticks, QVector<double> *subTicks, QVector<QString> *tickLabels) override;
+        // 动态调整小数位数
+        QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override;
+    private:
+        const FreqPlotter* m_parent;
+        double m_currentStep; // 当前刻度间隔（步长）
+    };
+
     bool half_range;
     bool shift_range;
     QVBoxLayout *layout;
@@ -67,6 +84,7 @@ private:
     QCustomPlot * time_freq_plot;
     QCPColorScale *color_scale;
     QCPColorMap *color_map;
+    QSharedPointer<FreqTicker> m_ticker;
     int map_xsize;
     int map_ysize;
     QCPMarginGroup *group;
@@ -75,10 +93,13 @@ private:
     // 频谱图
     int freq_bin_step; // 频谱图bin间隔
     int m_fft_size; // 输入数据的大小，可能是fft_size，也可能是fft_size/2
+    double m_fsa;
     
     BinState m_bin_state;
     int bin_lower; // 设置的要显示的bin下限
     int bin_upper; // 设置的要显示的bin上限
+    int bin_lowest;
+    int bin_upmost;
     int db_minimum;
     int db_maximum;
     int db_lower;
@@ -96,6 +117,9 @@ private:
     // freq时间平均，滑动窗
     // waterfall加色卡
 
+
+
+
     void init_freq_plot();
     void init_time_freq_plot();
     template <typename T>
@@ -103,6 +127,8 @@ private:
     void update_bin_state();
     void clamp_xaxis_range(const QCPRange &newRange);
     void get_bin_range_limit(int &left, int &right) const;
+
+
 };
 
 
