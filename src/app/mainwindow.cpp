@@ -14,8 +14,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->range_slider_db_ddc->SetRange(-160, 10);
     ui->range_slider_bin_ddc->SetRange(-300,300);
-    ui->freqPlotter_ddc->set_shift_range(true);
-    ui->widget_if->set_sample_frequency(96000);
+
+    ui->widget_if->set_sample_rate(192000);
+    ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
+    ui->widget_if->set_fft_size(8192);
+
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
@@ -28,7 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, ui->freqPlotter_ddc, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
-    connect(ui->pushButton_mode_ddc, &QPushButton::clicked, ui->freqPlotter_ddc, &FreqPlotter::togglePlotMode);
+    connect(ui->pushButton_mode_ddc, &QPushButton::clicked, ui->freqPlotter_ddc, &FreqPlotter::toggle_plot_mode);
     connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_lower);
     connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_upper);
     connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_lower);
@@ -36,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
-    connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::togglePlotMode);
+    connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::toggle_plot_mode);
     connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_db_lower);
     connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_db_upper);
 //    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_bin_lower);

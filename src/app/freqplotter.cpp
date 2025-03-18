@@ -7,28 +7,59 @@
 #include "freqplotter.h"
 
 
-FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
-    qRegisterMetaType<QVector<double>>("QVector<double>");
-    qRegisterMetaType<QVector<float>>("QVector<float>");
+FreqPlotter::FreqPlotter(QWidget *parent)
+    : QWidget(parent),
+      m_fft_size(2),
+      m_fsa(2),
+      m_fft_mode(FULL_SEQUENTIAL),
+      m_plot_mode(FreqMode),
+      fft_size_inited(false),
+      bin_lowest_display(0),
+      bin_upmost_display(m_fft_size),
+      bin_lowest(0),
+      bin_upmost(m_fft_size - 1),
+      bin_lower(bin_lowest),
+      bin_upper(bin_upmost),
+      db_minimum(-160),
+      db_maximum(20),
+      db_lower(db_minimum),
+      db_upper(db_maximum),
+      plot_paused(false),
+      last_plot_time(0),
+      cnt_plot_time(0),
+      plot_internal(33),
+      freq_bin_step(1),
+      map_xsize(1600),
+      map_ysize(100),
+      time_lower(0),
+      time_upper(map_ysize),
+      layout(nullptr),         // 指针成员显式初始化为nullptr
+      freq_plot(nullptr),
+      time_freq_plot(nullptr),
+      color_scale(nullptr),
+      color_map(nullptr),
+      group(nullptr)
+{
+    registerMetaTypesOnce();
+    init();
+}
 
-    // 默认顺序显示全频谱，即关闭half_range，关闭shift_range
-    half_range = false;
-    shift_range = false;
-    freq_bin_step = 1;
-    m_fft_size = 2;
-    m_fsa = 2;
-    m_bin_state = NeedUpdate;
-    bin_lower = 0;
-    bin_upper = 0;
-    db_minimum = -160;
-    db_maximum = 20;
-    db_lower = db_minimum;
-    db_upper = db_maximum;
-    map_xsize = 1600;
-    map_ysize = 100;
-    time_lower = 0;
-    time_upper = map_ysize;
-    plot_paused = false;
+FreqPlotter::FreqPlotter(int fft_size, double sample_rate, FFTDisplayMode fft_mode, PlotMode plot_mode, QWidget *parent)
+    : FreqPlotter(parent)
+{
+    m_fft_size = fft_size;
+    m_fsa = sample_rate;
+    m_fft_mode = fft_mode;
+    m_plot_mode = plot_mode;
+    fft_size_inited = true;
+}
+
+FreqPlotter::~FreqPlotter() {
+
+}
+
+
+void FreqPlotter::init() {
 
     // 获取资源
     layout = new QVBoxLayout(this);
@@ -44,26 +75,20 @@ FreqPlotter::FreqPlotter(QWidget *parent) : QWidget(parent) {
     layout->addWidget(time_freq_plot);
     this->setLayout(layout);
 
-    // 默认显示频谱图
-    setPlotMode(FreqMode);
-
     // 完成画布初始化
+    set_plot_mode(m_plot_mode);
     init_freq_plot();
     init_time_freq_plot();
 
+    // 启动计时器
     timer_plot.start();
     last_plot_time = timer_plot.elapsed() - 1000;
-    plot_internal = 33;
-}
-
-FreqPlotter::~FreqPlotter() {
 
 }
-
 
 void FreqPlotter::init_freq_plot() {
     freq_plot->xAxis->setTicker(m_ticker);
-    freq_plot->xAxis->setRange(0,m_fft_size-1);
+    freq_plot->xAxis->setRange(0,m_fft_size);
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
@@ -78,7 +103,7 @@ void FreqPlotter::init_freq_plot() {
 
 void FreqPlotter::init_time_freq_plot() {
     time_freq_plot->xAxis->setTicker(m_ticker);
-    freq_plot->xAxis->setRange(0,m_fft_size-1);
+    freq_plot->xAxis->setRange(0,m_fft_size);
     time_freq_plot->yAxis->setRange(db_lower,db_upper);
     time_freq_plot->yAxis2->setRange(time_lower,time_upper);
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
@@ -101,7 +126,6 @@ void FreqPlotter::init_time_freq_plot() {
     color_map->setInterpolate(true);
     color_map->data()->fill(db_minimum); // moving to QCPColorMapData constructor can speed up launch
 
-
     // 允许x轴拖拽和缩放
     time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
     time_freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
@@ -109,15 +133,83 @@ void FreqPlotter::init_time_freq_plot() {
     connect(time_freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
-void FreqPlotter::setPlotMode(FreqPlotter::PlotMode mode) {
+int FreqPlotter::get_fft_size() const {
+    return m_fft_size;
+}
+
+// 是否要加上bin_upmost_display？
+void FreqPlotter::set_fft_size( int size) {
+    m_fft_size = size;
+    fft_size_inited = true;
+
+    int mid = m_fft_size >> 1;
+    switch (m_fft_mode) {
+        case FULL_SEQUENTIAL:
+        default:
+            bin_lowest = 0;
+            bin_upmost = m_fft_size - 1;
+            bin_lowest_display = 0;
+            bin_upmost_display = m_fft_size;
+            break;
+        case FULL_SHIFTED:
+            bin_lowest = mid + 1 - m_fft_size;
+            bin_upmost = mid;
+            bin_lowest_display = -mid;
+            bin_upmost_display = mid;
+            break;
+        case HALF_LOWER:
+            bin_lowest = bin_lowest_display = 0;;
+            bin_upmost = bin_upmost_display = mid;
+            break;
+        case HALF_UPPER:
+            bin_lowest = mid + 1;
+            bin_upmost = m_fft_size - 1;
+            bin_lowest_display = mid;
+            bin_upmost_display = m_fft_size;
+            break;
+    }
+
+    bin_lower = bin_lowest;
+    bin_upper = bin_upmost;
+
+//     最终索引只会在(N-1)/2+1-N:(N-1)
+    freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
+    freq_plot->replot();
+    // time_freq图跟随设置
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
+    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    time_freq_plot->replot();
+}
+
+double FreqPlotter::get_sample_rate() const {
+    return m_fsa;
+}
+
+void FreqPlotter::set_sample_rate(double rate) {
+    m_fsa = rate;
+}
+
+FreqPlotter::FFTDisplayMode FreqPlotter::get_fft_display_mode() const {
+    return m_fft_mode;
+}
+
+void FreqPlotter::set_fft_display_mode(FFTDisplayMode mode) {
+    m_fft_mode = mode;
+}
+
+FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
+    return m_plot_mode;
+}
+
+void FreqPlotter::set_plot_mode(PlotMode mode) {
     freq_plot->setVisible(mode == FreqMode);
     time_freq_plot->setVisible(mode == TimeFreqMode);
     m_plot_mode = mode;
 }
 
-void FreqPlotter::togglePlotMode() {
+void FreqPlotter::toggle_plot_mode() {
 
-    setPlotMode(m_plot_mode == FreqMode ? TimeFreqMode : FreqMode);
+    set_plot_mode(m_plot_mode == FreqMode ? TimeFreqMode : FreqMode);
 
 }
 
@@ -140,24 +232,34 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
     }
     last_plot_time = cnt_plot_time;
 
-    int fft_size = freq_data.size();
-    // fft_size变化，且为默认情况边界跟随fft_size变化，需要更新bin_lower和bin_upper
-    if(fft_size != m_fft_size && m_bin_state != ManualSet){
-        m_bin_state = NeedUpdate;
-        m_fft_size = fft_size;
+    // 如果用户未手动设置，则自动设置数据长度为fft长度
+    int in_size = freq_data.size();
+    if(!fft_size_inited){
+        set_fft_size(in_size);
     }
 
-    // 得到最新的bin_lower和bin_upper，范围为(N-1)/2+1-N:-1或0:(N-1)/2
-    if (m_bin_state == NeedUpdate) {
-        update_bin_state();
+    // 根据预设fftsize，对用户输入数据长度进行校验
+    if(m_fft_mode < HALF_LOWER){
+        if(in_size < m_fft_size){
+            qWarning("Input data size is less than fft_size!");
+            return;
+        }
+    }else{
+        if(in_size < m_fft_size/2){
+            qWarning("Input data size is less than fft_size/2!");
+            return;
+        }
     }
+
 
     // 只画要显示的部分,节省资源
-    int bin_count = bin_upper - bin_lower + 1;
+    int bin_count_a = bin_upper - bin_lower + 1;
+    int bin_count_b = freq_data.size();
+    int bin_count = bin_count_a < bin_count_b ? bin_count_a : bin_count_b;
     int idx_vec = 0;
 
     if(m_plot_mode == FreqMode){
-        // 先确定freq_bin_step
+        // 先确定freq_bin_step，推出plot_size
         int plot_size = bin_count / freq_bin_step;
         QVector<double> x(plot_size), y(plot_size);
         for (int i = 0; i < plot_size; i++) {
@@ -174,9 +276,11 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
         // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度
         color_map->data()->shiftRowsBackward(1);
 
-        // 先确定的map_xsize
-        double time_freq_bin_step = double(bin_count-1)/ map_xsize;
-        for (int i = 0; i < map_xsize; i++) {
+        // 先确定plot_size，推出time_freq_bin_step
+        // 如何确定plot_size：由于map_xsize是确定的（对应bin_count_a），联合bin_count，即可推出plot_size
+        int plot_size = map_xsize * bin_count /  bin_count_a;
+        double time_freq_bin_step = double(bin_count-1)/ plot_size;
+        for (int i = 0; i < plot_size; i++) {
             idx_vec = lround(bin_lower + i * time_freq_bin_step);
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
             color_map->data()->setCellLatestRow(i, static_cast<double>(freq_data[idx_vec]));
@@ -187,58 +291,28 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
 
 }
 
-// 在bin跟随fft_size情况下，根据fft_size更新bin
-void FreqPlotter::update_bin_state() {
-    // 收到空QVector
-    if(m_fft_size == 0){
-        return;
-    }
-
-    get_bin_range_limit(bin_lower, bin_upper);
-
-    // 最终索引只会在(N-1)/2+1-N:(N-1)，但是显示的范围要+1
-    freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
-    freq_plot->replot();
-    // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
-    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
-    time_freq_plot->replot();
-    m_bin_state = UptoDate;
-}
-
-
 int FreqPlotter::set_bin_range(int lo, int up) {
     if (lo >= up) {
         return 0;
     }
 
-    // 得到当前情况下的bin的端点
-    int left, right;
-    get_bin_range_limit(left, right);
-
     // 设置值不能超过端点，否则截断
-    if (lo < left) {
-        lo = left;
+    if (lo < bin_lowest) {
+        lo = bin_lowest;
     }
-    if (up > right) {
-        up = right;
+    if (up > bin_upmost) {
+        up = bin_upmost;
     }
 
-    // 设置bin range的值，转为Manual模式
+    // 设置bin range的值
     bin_lower = lo;
     bin_upper = up;
-    m_bin_state = ManualSet;
 
-    // 检查是否到达两端端点，如果是，转为自动模式
-    if (bin_lower == left && bin_upper == right) {
-        m_bin_state = UptoDate;
-    }
-
-    freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
+    freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
     freq_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upper+1);
+    time_freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
     color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
     time_freq_plot->replot();
     return 1;
@@ -284,55 +358,21 @@ int FreqPlotter::set_db_upper(int up) {
     return set_db_range(db_lower,up);
 }
 
-bool FreqPlotter::get_half_range() const {
-    return half_range;
-}
 
-void FreqPlotter::set_half_range(bool half) {
-    half_range = half;
-}
-
-bool FreqPlotter::get_shift_range() const {
-    return shift_range;
-}
-
-void FreqPlotter::set_shift_range(bool shift) {
-    shift_range = shift;
-}
-
-int FreqPlotter::get_fft_size() const {
-    return m_fft_size;
-}
-
-void FreqPlotter::set_fft_size( int size) {
-     m_fft_size = size;
-}
-
-double FreqPlotter::get_sample_frequency() const {
-    return m_fsa;
-}
-
-void FreqPlotter::set_sample_frequency(double fsa) {
-    m_fsa = fsa;
-}
 
 void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     QCPRange clampedRange = newRange;
 
-    // 得到当前情况下的bin的端点
-    int left, right;
-    get_bin_range_limit(left, right);
-
-    // 限制下限不低于 left
-    if (clampedRange.lower < left) {
-        clampedRange.lower = left;
-        clampedRange.upper = clampedRange.size() + left;
+    // 限制下限不低于 bin_lowest
+    if (clampedRange.lower < bin_lowest) {
+        clampedRange.lower = bin_lowest;
+        clampedRange.upper = clampedRange.size() + bin_lowest;
     }
 
-    // 限制上限不高于 right
-    if (clampedRange.upper > right) {
-        clampedRange.upper = right;
-        clampedRange.lower = right - clampedRange.size();
+    // 限制上限不高于 bin_upmost
+    if (clampedRange.upper > bin_upmost_display) {
+        clampedRange.upper = bin_upmost_display;
+        clampedRange.lower = bin_upmost_display - clampedRange.size();
     }
 
     // 如果范围需要修正，则更新
@@ -344,16 +384,6 @@ void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     }
 }
 
-void FreqPlotter::get_bin_range_limit(int &left, int &right) const {
-    int mid = m_fft_size >> 1;
-    if (half_range) {
-        left = shift_range ? mid + 1 : 0;
-        right = shift_range ? m_fft_size - 1 : mid;
-    } else {
-        left = shift_range ? mid + 1 - m_fft_size : 0;
-        right = shift_range ? mid : m_fft_size - 1;
-    }
-}
 
 void FreqPlotter::set_plot_paused(bool paused) {
     plot_paused = paused;
@@ -369,94 +399,22 @@ void FreqPlotter::set_frame_per_second(int fps) {
     }
 }
 
-
 // FreqTicker实现
-FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent),m_currentStep(0){
+FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent), m_freq_step(0){
     setTickStepStrategy(tssMeetTickCount);
     setTickCount(6);
 }
-
-void FreqPlotter::FreqTicker::generate(
-        const QCPRange &range,
-        const QLocale &locale,
-        QChar formatChar,
-        int precision,
-        QVector<double> &ticks,
-        QVector<double> *subTicks,
-        QVector<QString> *tickLabels)
-{
-    // 调用基类生成刻度（索引值）
-//    QCPAxisTicker::generate(range, locale, formatChar, precision, ticks, subTicks, tickLabels);
-
-//    // 计算实际频率步长（Hz）
-//    if (ticks.size() >= 2) {
-//        m_currentStep = (ticks[1] - ticks[0]) * m_parent->m_fsa / m_parent->m_fft_size; // 频率间隔
-//    } else {
-//        m_currentStep = 0;
-//    }
-
-    // Step 1: 计算实际频率范围
-    const double lowerFreq = range.lower * m_parent->m_fsa / m_parent->m_fft_size;
-    const double upperFreq = range.upper * m_parent->m_fsa / m_parent->m_fft_size;
-    const QCPRange freqRange(lowerFreq, upperFreq);
-
-    // Step 2: 计算等分步长（5个间隔生成6个刻度）
-    m_currentStep = (freqRange.upper - freqRange.lower) / 5.0;
-
-    // Step 3: 生成主刻度（频率空间）
-    ticks.clear();
-    for (int i = 0; i < 6; ++i) {
-        double freq = freqRange.lower + i * m_currentStep;
-        // 转换为索引空间
-        double index = freq * m_parent->m_fft_size / m_parent->m_fsa;
-        ticks.append(index);
-    }
-
-    // Step 4: 强制包含FFT末尾刻度（如果可见）
-    const double fsIndex = m_parent->m_fft_size;
-    if (range.contains(fsIndex) && !ticks.contains(fsIndex)) {
-        ticks.back() = fsIndex; // 替换最后一个刻度为Fs
-        m_currentStep = (upperFreq - lowerFreq) / (ticks.size() - 1); // 重新计算步长
-    }
-
-    // Step 5: 生成标签
-    if (tickLabels) {
-        tickLabels->clear();
-        for (const auto &tick : ticks) {
-            double freq = tick * m_parent->m_fsa / m_parent->m_fft_size;
-            int dynamicPrecision = 0;
-            if (m_currentStep < 1) dynamicPrecision = 1;
-            if (m_currentStep < 0.1) dynamicPrecision = 2;
-            if (m_currentStep < 0.01) dynamicPrecision = 3;
-            tickLabels->append(QString::number(freq, 'f', dynamicPrecision) + " Hz");
-        }
-    }
-
-    // Step 6: 生成子刻度（可选）
-    if (subTicks) {
-        subTicks->clear();
-        for (int i = 0; i < ticks.size() - 1; ++i) {
-            const double start = ticks[i];
-            const double end = ticks[i + 1];
-            const double substep = (end - start) / 5.0;
-            for (int j = 1; j < 5; ++j) {
-                subTicks->append(start + j * substep);
-            }
-        }
-    }
-}
-
 
 
 QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) {
     // 根据步长动态计算小数位数
     int dynamicPrecision = 0;
     // 规则：步长<0.1:显示2位，步长<1:显示1位，否则0位
-    if(m_currentStep < 0.01){
+    if(m_freq_step < 0.01){
         dynamicPrecision = 3;
-    } else if (m_currentStep < 0.1) {
+    } else if (m_freq_step < 0.1) {
         dynamicPrecision = 2;
-    } else if (m_currentStep < 1) {
+    } else if (m_freq_step < 1) {
         dynamicPrecision = 1;
     } else {
         dynamicPrecision = 0;
@@ -468,6 +426,28 @@ QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale
     // 格式化标签（强制使用 'f' 格式，避免科学计数法）
     return QString::number(freq, 'f', dynamicPrecision) + " Hz";
 }
+
+double FreqPlotter::FreqTicker::getTickStep(const QCPRange &range) {
+
+    // 固定 6 个刻度
+    int tickCount = 6;
+
+    // 计算步长
+    double tick_step = (range.upper - range.lower) / (tickCount - 1);
+    m_freq_step = tick_step * m_parent->m_fsa / m_parent->m_fft_size;
+    return tick_step;
+}
+
+bool FreqPlotter::registeredMetaTypes = false;
+
+void FreqPlotter::registerMetaTypesOnce() {
+    if (!registeredMetaTypes) {
+        qRegisterMetaType<QVector<double>>("QVector<double>");
+        qRegisterMetaType<QVector<float>>("QVector<float>");
+        registeredMetaTypes = true;
+    }
+}
+
 
 
 
