@@ -16,10 +16,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->range_slider_bin_ddc->SetRange(-300,300);
 
     ui->widget_if->set_sample_rate(192000);
-    ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
     ui->widget_if->set_fft_size(8192);
+    ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
 
-    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512);
+    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::Spectrum, FreqPlotter::FULL_SHIFTED);
 
     QLayout *layout_ddc = new QHBoxLayout();
     layout_ddc->addWidget(freqPlotter_ddc);

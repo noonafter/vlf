@@ -10,10 +10,10 @@
 FreqPlotter::FreqPlotter(QWidget *parent)
     : QWidget(parent),
       m_fft_size(2),
-      m_fsa(2),
-      m_plot_mode(FreqMode),
+      m_plot_mode(Spectrum),
       m_fft_mode(FULL_SEQUENTIAL),
       fft_size_inited(false),
+      m_fsa(2),
       bin_lowest_display(0),
       bin_upmost_display(m_fft_size),
       bin_lowest(0),
@@ -44,13 +44,13 @@ FreqPlotter::FreqPlotter(QWidget *parent)
     init();
 }
 
-FreqPlotter::FreqPlotter(int fft_size, double sample_rate, PlotMode plot_mode, FFTDisplayMode fft_mode, QWidget *parent)
+FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mode, QWidget *parent)
     : QWidget(parent),
       m_fft_size(fft_size),
-      m_fsa(sample_rate),
       m_plot_mode(plot_mode),
       m_fft_mode(fft_mode),
       fft_size_inited(true),
+      m_fsa(2),
       bin_lowest_display(0),
       bin_upmost_display(m_fft_size),
       bin_lowest(0),
@@ -103,10 +103,10 @@ void FreqPlotter::init() {
     this->setLayout(layout);
 
     // 完成画布初始化
-    init_freq_plot();
-    init_time_freq_plot();
+    update_bin_ranges();
+    init_spectrum();
+    init_waterfall();
     set_plot_mode(m_plot_mode);
-    set_fft_size(m_fft_size);
 
     // 启动计时器
     timer_plot.start();
@@ -114,7 +114,8 @@ void FreqPlotter::init() {
 
 }
 
-void FreqPlotter::init_freq_plot() {
+void FreqPlotter::init_spectrum() {
+    freq_plot->xAxis->setRange(bin_lowest_display,bin_upmost_display);
     freq_plot->xAxis->setTicker(m_ticker);
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
@@ -128,10 +129,12 @@ void FreqPlotter::init_freq_plot() {
     connect(freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
-void FreqPlotter::init_time_freq_plot() {
+void FreqPlotter::init_waterfall() {
+    time_freq_plot->xAxis->setRange(bin_lowest_display,bin_upmost_display);
     time_freq_plot->xAxis->setTicker(m_ticker);
     time_freq_plot->yAxis->setRange(db_lower,db_upper);
     time_freq_plot->yAxis2->setRange(time_lower,time_upper);
+    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
 
     // 设置color scale
@@ -168,42 +171,13 @@ void FreqPlotter::set_fft_size(int size) {
     m_fft_size = size;
     fft_size_inited = true;
 
-    int mid = m_fft_size >> 1;
-    switch (m_fft_mode) {
-        case FULL_SEQUENTIAL:
-        default:
-            bin_lowest = 0;
-            bin_upmost = m_fft_size - 1;
-            bin_lowest_display = 0;
-            bin_upmost_display = m_fft_size;
-            break;
-        case FULL_SHIFTED:
-            bin_lowest = mid + 1 - m_fft_size;
-            bin_upmost = mid;
-            bin_lowest_display = -mid;
-            bin_upmost_display = mid;
-            break;
-        case HALF_LOWER:
-            bin_lowest = bin_lowest_display = 0;;
-            bin_upmost = bin_upmost_display = mid;
-            break;
-        case HALF_UPPER:
-            bin_lowest = mid + 1;
-            bin_upmost = m_fft_size - 1;
-            bin_lowest_display = mid;
-            bin_upmost_display = m_fft_size;
-            break;
-    }
+    update_bin_ranges();
 
-    bin_lower = bin_lowest;
-    bin_upper = bin_upmost;
-
-//     最终索引只会在(N-1)/2+1-N:(N-1)
-    freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
-    freq_plot->replot();
-    // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
+    // 更新横轴并重新绘图
+    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
+    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
     color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    freq_plot->replot();
     time_freq_plot->replot();
 }
 
@@ -221,6 +195,15 @@ FreqPlotter::FFTDisplayMode FreqPlotter::get_fft_display_mode() const {
 
 void FreqPlotter::set_fft_display_mode(FFTDisplayMode mode) {
     m_fft_mode = mode;
+    update_bin_ranges();
+
+    // 更新横轴并重新绘图
+    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
+    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
+    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    freq_plot->replot();
+    time_freq_plot->replot();
+
 }
 
 FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
@@ -228,14 +211,14 @@ FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
 }
 
 void FreqPlotter::set_plot_mode(PlotMode mode) {
-    freq_plot->setVisible(mode == FreqMode);
-    time_freq_plot->setVisible(mode == TimeFreqMode);
+    freq_plot->setVisible(mode == Spectrum);
+    time_freq_plot->setVisible(mode == Waterfall);
     m_plot_mode = mode;
 }
 
 void FreqPlotter::toggle_plot_mode() {
 
-    set_plot_mode(m_plot_mode == FreqMode ? TimeFreqMode : FreqMode);
+    set_plot_mode(m_plot_mode == Spectrum ? Waterfall : Spectrum);
 
 }
 
@@ -284,7 +267,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
     int bin_count = bin_count_a < bin_count_b ? bin_count_a : bin_count_b;
     int idx_vec = 0;
 
-    if(m_plot_mode == FreqMode){
+    if(m_plot_mode == Spectrum){
         // 先确定freq_bin_step，推出plot_size
         int plot_size = bin_count / freq_bin_step;
         QVector<double> x(plot_size), y(plot_size);
@@ -296,7 +279,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
         }
         freq_plot->graph(0)->setData(x, y);
         freq_plot->replot();
-    } else if(m_plot_mode == TimeFreqMode){
+    } else if(m_plot_mode == Waterfall){
 
         // 所有data向后移动一行，空出第一行
         // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度
@@ -334,11 +317,11 @@ int FreqPlotter::set_bin_range(int lo, int up) {
     bin_lower = lo;
     bin_upper = up;
 
-    freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
+    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
     freq_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lower, bin_upmost_display);
+    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
     color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
     time_freq_plot->replot();
     return 1;
@@ -390,9 +373,9 @@ void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     QCPRange clampedRange = newRange;
 
     // 限制下限不低于 bin_lowest
-    if (clampedRange.lower < bin_lowest) {
-        clampedRange.lower = bin_lowest;
-        clampedRange.upper = clampedRange.size() + bin_lowest;
+    if (clampedRange.lower < bin_lowest_display) {
+        clampedRange.lower = bin_lowest_display;
+        clampedRange.upper = clampedRange.size() + bin_lowest_display;
     }
 
     // 限制上限不高于 bin_upmost
@@ -427,8 +410,6 @@ void FreqPlotter::set_frame_per_second(int fps) {
 
 // FreqTicker实现
 FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent), m_freq_step(0){
-    setTickStepStrategy(tssMeetTickCount);
-    setTickCount(6);
 }
 
 
@@ -474,7 +455,37 @@ void FreqPlotter::register_meta_types_once() {
     }
 }
 
+void FreqPlotter::update_bin_ranges() {
+    int mid = m_fft_size >> 1;
+    switch (m_fft_mode) {
+        case FULL_SEQUENTIAL:
+        default:
+            bin_lowest = 0;
+            bin_upmost = m_fft_size - 1;
+            bin_lowest_display = 0;
+            bin_upmost_display = m_fft_size;
+            break;
+        case FULL_SHIFTED:
+            bin_lowest = mid + 1 - m_fft_size;
+            bin_upmost = mid;
+            bin_lowest_display = -mid;
+            bin_upmost_display = mid;
+            break;
+        case HALF_LOWER:
+            bin_lowest = bin_lowest_display = 0;;
+            bin_upmost = bin_upmost_display = mid;
+            break;
+        case HALF_UPPER:
+            bin_lowest = mid + 1;
+            bin_upmost = m_fft_size - 1;
+            bin_lowest_display = mid;
+            bin_upmost_display = m_fft_size;
+            break;
+    }
 
+    bin_lower = bin_lowest;
+    bin_upper = bin_upmost;
+}
 
 
 

@@ -22,15 +22,15 @@
 // 支持功率谱图峰值显示，AB标签
 // 支持瀑布图（色图）尺寸及调色板动态调整
 // 需要对四种模式情况进行测试，查看xAxis的坐标值是否正确
-// 最后一个坐标没有显示出来
+// 后续对set_fsa函数进行更改，加上默认单位
 
 class FreqPlotter : public QWidget {
 Q_OBJECT
 
 public:
     enum PlotMode {
-        FreqMode = 0, // 绘制功率谱图，默认情况
-        TimeFreqMode  // 绘制瀑布图
+        Spectrum = 0, // 绘制功率谱图，默认情况
+        Waterfall     // 绘制瀑布图
     };
 
     enum FFTDisplayMode {
@@ -43,8 +43,8 @@ public:
 // 提升为FreqPlotter即可使用
     explicit FreqPlotter(QWidget *parent = nullptr);
 
-    explicit FreqPlotter(int fft_size, double sample_rate = 2, PlotMode plot_mode = FreqMode,
-                         FFTDisplayMode fft_mode = FULL_SEQUENTIAL, QWidget *parent = nullptr);
+    explicit FreqPlotter(int fft_size, PlotMode plot_mode = Spectrum, FFTDisplayMode fft_mode = FULL_SEQUENTIAL,
+                         QWidget *parent = nullptr);
 
     ~FreqPlotter() override;
 
@@ -93,11 +93,11 @@ private:
 
     // 公共关键参数
     int m_fft_size;
-    double m_fsa;
     PlotMode m_plot_mode;
     FFTDisplayMode m_fft_mode;
     bool fft_size_inited;
     // 公共一般参数
+    double m_fsa;
     int bin_lowest_display; // 需要显示的bin上界
     int bin_upmost_display; // 需要显示的bin上界
     int bin_lowest; // 能够绘制的bin下界
@@ -143,11 +143,13 @@ private:
 
 
     void init();
-    void init_freq_plot();
-    void init_time_freq_plot();
+    void init_spectrum();
+    void init_waterfall();
     template <typename T>
     void plot_freq_impl(const QVector<T>& freq_data);
     void clamp_xaxis_range(const QCPRange &newRange);
+    // 根据FFTDisplayMode和fft更新bin_upper等参数
+    void update_bin_ranges();
 
 };
 
