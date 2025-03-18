@@ -11,8 +11,8 @@ FreqPlotter::FreqPlotter(QWidget *parent)
     : QWidget(parent),
       m_fft_size(2),
       m_fsa(2),
-      m_fft_mode(FULL_SEQUENTIAL),
       m_plot_mode(FreqMode),
+      m_fft_mode(FULL_SEQUENTIAL),
       fft_size_inited(false),
       bin_lowest_display(0),
       bin_upmost_display(m_fft_size),
@@ -24,10 +24,10 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       db_maximum(20),
       db_lower(db_minimum),
       db_upper(db_maximum),
+      plot_internal(33),
       plot_paused(false),
       last_plot_time(0),
       cnt_plot_time(0),
-      plot_internal(33),
       freq_bin_step(1),
       map_xsize(1600),
       map_ysize(100),
@@ -40,18 +40,45 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       color_map(nullptr),
       group(nullptr)
 {
-    registerMetaTypesOnce();
+    register_meta_types_once();
     init();
 }
 
-FreqPlotter::FreqPlotter(int fft_size, double sample_rate, FFTDisplayMode fft_mode, PlotMode plot_mode, QWidget *parent)
-    : FreqPlotter(parent)
+FreqPlotter::FreqPlotter(int fft_size, double sample_rate, PlotMode plot_mode, FFTDisplayMode fft_mode, QWidget *parent)
+    : QWidget(parent),
+      m_fft_size(fft_size),
+      m_fsa(sample_rate),
+      m_plot_mode(plot_mode),
+      m_fft_mode(fft_mode),
+      fft_size_inited(true),
+      bin_lowest_display(0),
+      bin_upmost_display(m_fft_size),
+      bin_lowest(0),
+      bin_upmost(m_fft_size - 1),
+      bin_lower(bin_lowest),
+      bin_upper(bin_upmost),
+      db_minimum(-160),
+      db_maximum(20),
+      db_lower(db_minimum),
+      db_upper(db_maximum),
+      plot_internal(33),
+      plot_paused(false),
+      last_plot_time(0),
+      cnt_plot_time(0),
+      freq_bin_step(1),
+      map_xsize(1600),
+      map_ysize(100),
+      time_lower(0),
+      time_upper(map_ysize),
+      layout(nullptr),         // 指针成员显式初始化为nullptr
+      freq_plot(nullptr),
+      time_freq_plot(nullptr),
+      color_scale(nullptr),
+      color_map(nullptr),
+      group(nullptr)
 {
-    m_fft_size = fft_size;
-    m_fsa = sample_rate;
-    m_fft_mode = fft_mode;
-    m_plot_mode = plot_mode;
-    fft_size_inited = true;
+    register_meta_types_once();
+    init();
 }
 
 FreqPlotter::~FreqPlotter() {
@@ -76,9 +103,10 @@ void FreqPlotter::init() {
     this->setLayout(layout);
 
     // 完成画布初始化
-    set_plot_mode(m_plot_mode);
     init_freq_plot();
     init_time_freq_plot();
+    set_plot_mode(m_plot_mode);
+    set_fft_size(m_fft_size);
 
     // 启动计时器
     timer_plot.start();
@@ -88,7 +116,6 @@ void FreqPlotter::init() {
 
 void FreqPlotter::init_freq_plot() {
     freq_plot->xAxis->setTicker(m_ticker);
-    freq_plot->xAxis->setRange(0,m_fft_size);
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
@@ -103,7 +130,6 @@ void FreqPlotter::init_freq_plot() {
 
 void FreqPlotter::init_time_freq_plot() {
     time_freq_plot->xAxis->setTicker(m_ticker);
-    freq_plot->xAxis->setRange(0,m_fft_size);
     time_freq_plot->yAxis->setRange(db_lower,db_upper);
     time_freq_plot->yAxis2->setRange(time_lower,time_upper);
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
@@ -138,7 +164,7 @@ int FreqPlotter::get_fft_size() const {
 }
 
 // 是否要加上bin_upmost_display？
-void FreqPlotter::set_fft_size( int size) {
+void FreqPlotter::set_fft_size(int size) {
     m_fft_size = size;
     fft_size_inited = true;
 
@@ -440,7 +466,7 @@ double FreqPlotter::FreqTicker::getTickStep(const QCPRange &range) {
 
 bool FreqPlotter::registeredMetaTypes = false;
 
-void FreqPlotter::registerMetaTypesOnce() {
+void FreqPlotter::register_meta_types_once() {
     if (!registeredMetaTypes) {
         qRegisterMetaType<QVector<double>>("QVector<double>");
         qRegisterMetaType<QVector<float>>("QVector<float>");

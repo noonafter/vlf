@@ -132,7 +132,7 @@
         </widget>
        </item>
        <item>
-        <widget class="FreqPlotter" name="freqPlotter_ddc" native="true"/>
+        <widget class="QWidget" name="widget_ddc" native="true"/>
        </item>
       </layout>
      </widget>

@@ -33,7 +33,7 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    FreqPlotter *freqPlotter_ddc;
+//    FreqPlotter *freqPlotter_ddc;
 
 
     QThread *recv_thread;

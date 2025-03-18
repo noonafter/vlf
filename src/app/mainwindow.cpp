@@ -19,6 +19,13 @@ MainWindow::MainWindow(QWidget *parent)
     ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
     ui->widget_if->set_fft_size(8192);
 
+    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512);
+
+    QLayout *layout_ddc = new QHBoxLayout();
+    layout_ddc->addWidget(freqPlotter_ddc);
+
+    ui->widget_ddc->setLayout(layout_ddc);
+
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
     recv_config = new VLFReceiverConfig(file_name);
@@ -30,12 +37,12 @@ MainWindow::MainWindow(QWidget *parent)
         vlf_ch[i] = new VLFChannel(i);
     }
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, ui->freqPlotter_ddc, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
-    connect(ui->pushButton_mode_ddc, &QPushButton::clicked, ui->freqPlotter_ddc, &FreqPlotter::toggle_plot_mode);
-    connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_lower);
-    connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_bin_upper);
-    connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_lower);
-    connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), ui->freqPlotter_ddc, &FreqPlotter::set_db_upper);
+    connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, freqPlotter_ddc, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
+    connect(ui->pushButton_mode_ddc, &QPushButton::clicked, freqPlotter_ddc, &FreqPlotter::toggle_plot_mode);
+    connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_lower);
+    connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_upper);
+    connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_lower);
+    connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_upper);
 
 
     connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));

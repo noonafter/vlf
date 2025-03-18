@@ -43,8 +43,8 @@ public:
 // 提升为FreqPlotter即可使用
     explicit FreqPlotter(QWidget *parent = nullptr);
 
-    explicit FreqPlotter(int fft_size, double sample_rate = 2, FFTDisplayMode fft_mode = FULL_SEQUENTIAL,
-                         PlotMode plot_mode = FreqMode, QWidget *parent = nullptr);
+    explicit FreqPlotter(int fft_size, double sample_rate = 2, PlotMode plot_mode = FreqMode,
+                         FFTDisplayMode fft_mode = FULL_SEQUENTIAL, QWidget *parent = nullptr);
 
     ~FreqPlotter() override;
 
@@ -88,11 +88,14 @@ private:
         double m_freq_step; // 当前刻度间隔（步长）
     };
 
+    static bool registeredMetaTypes;     // 静态标志位
+    static void register_meta_types_once(); // 静态注册函数
+
     // 公共关键参数
     int m_fft_size;
     double m_fsa;
-    FFTDisplayMode m_fft_mode;
     PlotMode m_plot_mode;
+    FFTDisplayMode m_fft_mode;
     bool fft_size_inited;
     // 公共一般参数
     int bin_lowest_display; // 需要显示的bin上界
@@ -105,10 +108,10 @@ private:
     int db_maximum;
     int db_lower;
     int db_upper;
+    int plot_internal; // ms
     bool plot_paused;
     qint64 last_plot_time;
     qint64 cnt_plot_time;
-    int plot_internal; // ms
     // 频谱图参数
     int freq_bin_step; // 频谱图bin间隔
     // 瀑布图参数
@@ -132,8 +135,11 @@ private:
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
     // freq时间平均，滑动窗
     // waterfall加色卡
-    // 加上新的构造FreqPlotter(fftsize,fsa=2,half_range=false,shift_range=false)
-    // bin_upmost是指的bin_upper能取的上界，但是显示的时候，还需要一个bin_upmost_display
+    // bin_upmost是指的bin_upper能取的上界，但是显示的时候，还需要一个bin_upmost_display，需要测试4中模式上下边境是否正确
+    // 内嵌类继承QCPAxis，重写draw
+    // 突然有个思路：自定义内嵌类FreqMap继承QCPColorMap，添加setCellLatestRow，updateMapImageTranslate，shiftRowsBackward，
+    // 这样不用破坏qcustomplot的封装完整性，直接将FreqPlotter拷到其他带有qcustomplot文件的工程中就可以使用
+    // 改动之后，只需要将原来的成员QCPColorMap *color_map换成FreqMap *color_map，改一下new的地方，其他地方都不用改
 
 
     void init();
@@ -143,8 +149,6 @@ private:
     void plot_freq_impl(const QVector<T>& freq_data);
     void clamp_xaxis_range(const QCPRange &newRange);
 
-    static bool registeredMetaTypes;     // 静态标志位
-    static void registerMetaTypesOnce(); // 静态注册函数
 };
 
 
