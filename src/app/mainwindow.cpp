@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->widget_if->set_fft_size(8192);
     ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
 
-    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::Spectrum, FreqPlotter::HALF_UPPER);
+    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::SPECTRUM, FreqPlotter::HALF_UPPER);
 
     QLayout *layout_ddc = new QHBoxLayout();
     layout_ddc->addWidget(freqPlotter_ddc);
@@ -39,24 +39,28 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(vlf_ch[0], &VLFChannel::subch_freq_ddc_ready, freqPlotter_ddc, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
     connect(ui->pushButton_mode_ddc, &QPushButton::clicked, freqPlotter_ddc, &FreqPlotter::toggle_plot_mode);
-    connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_lower);
-    connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_bin_upper);
-    connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_lower);
-    connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc, &FreqPlotter::set_db_upper);
+    connect(ui->spinBox_bin_lower_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc,
+            &FreqPlotter::set_bin_min);
+    connect(ui->spinBox_bin_upper_ddc, QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc,
+            &FreqPlotter::set_bin_max);
+    connect(ui->spinBox_db_lower_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc,
+            &FreqPlotter::set_db_min);
+    connect(ui->spinBox_db_upper_ddc,QOverload<int>::of(&QSpinBox::valueChanged), freqPlotter_ddc,
+            &FreqPlotter::set_db_max);
 
 
     connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
     connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::toggle_plot_mode);
-    connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_db_lower);
-    connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_db_upper);
-//    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_bin_lower);
-//    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_bin_upper);
+    connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if, &FreqPlotter::set_db_min);
+    connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if, &FreqPlotter::set_db_max);
+//    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_bin_min);
+//    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_bin_max);
 
     connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,[=](int lo){
-        ui->widget_if->set_bin_lower(lo*ui->widget_if->get_fft_size()/300);
+        ui->widget_if->set_bin_min(lo * ui->widget_if->get_fft_size() / 300);
     });
     connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,[=](int up){
-        ui->widget_if->set_bin_upper(up*ui->widget_if->get_fft_size()/300);
+        ui->widget_if->set_bin_max(up * ui->widget_if->get_fft_size() / 300);
     });
     // 处理业务逻辑，保证线程安全
     // 具体业务逻辑：

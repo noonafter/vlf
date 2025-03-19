@@ -30,21 +30,21 @@ Q_OBJECT
 
 public:
     enum PlotMode {
-        Spectrum = 0, // 绘制功率谱图，默认情况
-        Waterfall     // 绘制瀑布图
+        SPECTRUM, // 绘制功率谱图，默认情况
+        WATERFALL // 绘制瀑布图
     };
 
     enum FFTDisplayMode {
-        FULL_SEQUENTIAL = 0, // 展示整个FFT点数，顺序展示，默认情况
-        FULL_SHIFTED,        // 展示整个FFT点数，上下频谱移位，常用于复数信号。
-        HALF_LOWER,          // 只展示下半部分FFT点数，常用于实数信号
-        HALF_UPPER           // 只展示上半部分FFT点数，较少使用
+        FULL_SEQUENTIAL, // 展示整个FFT点数，顺序展示，默认情况
+        FULL_SHIFTED,    // 展示整个FFT点数，上下频谱移位，常用于复数信号。
+        HALF_LOWER,      // 只展示下半部分FFT点数，常用于实数信号
+        HALF_UPPER       // 只展示上半部分FFT点数，较少使用
     };
 
 // 提升为FreqPlotter即可使用
     explicit FreqPlotter(QWidget *parent = nullptr);
 
-    explicit FreqPlotter(int fft_size, PlotMode plot_mode = Spectrum, FFTDisplayMode fft_mode = FULL_SEQUENTIAL,
+    explicit FreqPlotter(int fft_size, PlotMode plot_mode = SPECTRUM, FFTDisplayMode fft_mode = FULL_SEQUENTIAL,
                          QWidget *parent = nullptr);
 
     ~FreqPlotter() override;
@@ -58,15 +58,14 @@ public:
     PlotMode get_plot_mode() const;
     void set_plot_mode(PlotMode mode);
 
-    int set_bin_range(int lo, int up);
-    int set_bin_lower(int lo);
-    int set_bin_upper(int up);
-    int set_db_range(int lo, int up);
-    int set_db_lower(int lo);
-    int set_db_upper(int up);
+    int set_bin_range(int min, int max);
+    int set_bin_min(int min);
+    int set_bin_max(int max);
+    int set_db_range(int min, int max);
+    int set_db_min(int min);
+    int set_db_max(int max);
     void set_plot_paused(bool paused);
     void set_frame_per_second(int fps);
-
     void toggle_plot_mode();
     void plot_freq(const QVector<double>& freq_data);
     void plot_freq(const QVector<float>& freq_data);
@@ -99,16 +98,19 @@ private:
     bool fft_size_inited;
     // 公共一般参数
     double m_fsa;
-    int bin_lowest_display; // 需要显示的bin上界
-    int bin_upmost_display; // 需要显示的bin上界
-    int bin_lowest; // 能够绘制的bin下界
-    int bin_upmost; // 能够绘制的bin上界
-    int bin_lower;  // 需要绘制的bin下界
-    int bin_upper;  // 需要绘制的bin上界
-    int db_minimum;
-    int db_maximum;
-    int db_lower;
-    int db_upper;
+    /* 显示值和绘制值要分开：显示值指窗口显示的横坐标范围，绘制值指是指绘制的点的横坐标值。*/
+    int x_min_limit; // 窗口横坐标，即频率，单位Hz，KHz
+    int x_max_limit;
+    int x_min;
+    int x_max;
+    int y_min_limit; // 窗口纵坐标，即信号强度，单位dBFs/dBm/dBV
+    int y_max_limit;
+    int y_min;
+    int y_max;
+    int bin_min_limit; // 数据点横坐标
+    int bin_max_limit;
+    int bin_min;
+    int bin_max;
     int plot_internal; // ms
     bool plot_paused;
     qint64 last_plot_time;
@@ -139,6 +141,7 @@ private:
     // 突然有个思路：自定义内嵌类FreqMap继承QCPColorMap，添加setCellLatestRow，updateMapImageTranslate，shiftRowsBackward，
     // 这样不用破坏qcustomplot的封装完整性，直接将FreqPlotter拷到其他带有qcustomplot文件的工程中就可以使用
     // 改动之后，只需要将原来的成员QCPColorMap *color_map换成FreqMap *color_map，改一下new的地方，其他地方都不用改
+    // QCPAxisTicker还有subtick
 
 
     void init();

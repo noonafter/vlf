@@ -10,20 +10,22 @@
 FreqPlotter::FreqPlotter(QWidget *parent)
     : QWidget(parent),
       m_fft_size(2),
-      m_plot_mode(Spectrum),
+      m_plot_mode(SPECTRUM),
       m_fft_mode(FULL_SEQUENTIAL),
       fft_size_inited(false),
       m_fsa(2),
-      bin_lowest_display(0),
-      bin_upmost_display(m_fft_size),
-      bin_lowest(0),
-      bin_upmost(m_fft_size - 1),
-      bin_lower(bin_lowest),
-      bin_upper(bin_upmost),
-      db_minimum(-160),
-      db_maximum(20),
-      db_lower(db_minimum),
-      db_upper(db_maximum),
+      x_min_limit(0),
+      x_max_limit(m_fft_size),
+      x_min(x_min_limit),
+      x_max(x_max_limit),
+      y_min_limit(-160),
+      y_max_limit(20),
+      y_min(y_min_limit),
+      y_max(y_max_limit),
+      bin_min_limit(0),
+      bin_max_limit(m_fft_size - 1),
+      bin_min(bin_min_limit),
+      bin_max(bin_max_limit),
       plot_internal(33),
       plot_paused(false),
       last_plot_time(0),
@@ -51,16 +53,18 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       m_fft_mode(fft_mode),
       fft_size_inited(true),
       m_fsa(2),
-      bin_lowest_display(0),
-      bin_upmost_display(m_fft_size),
-      bin_lowest(0),
-      bin_upmost(m_fft_size - 1),
-      bin_lower(bin_lowest),
-      bin_upper(bin_upmost),
-      db_minimum(-160),
-      db_maximum(20),
-      db_lower(db_minimum),
-      db_upper(db_maximum),
+      x_min_limit(0),
+      x_max_limit(m_fft_size),
+      x_min(x_min_limit),
+      x_max(x_max_limit),
+      y_min_limit(-160),
+      y_max_limit(20),
+      y_min(y_min_limit),
+      y_max(y_max_limit),
+      bin_min_limit(0),
+      bin_max_limit(m_fft_size - 1),
+      bin_min(bin_min_limit),
+      bin_max(bin_max_limit),
       plot_internal(33),
       plot_paused(false),
       last_plot_time(0),
@@ -115,26 +119,29 @@ void FreqPlotter::init() {
 }
 
 void FreqPlotter::init_spectrum() {
-    freq_plot->xAxis->setRange(bin_lowest_display,bin_upmost_display);
+    freq_plot->xAxis->setRange(x_min, x_max);
     freq_plot->xAxis->setTicker(m_ticker);
     freq_plot->addGraph();
     freq_plot->graph(0)->setName("rx");
     freq_plot->graph(0)->setPen(QPen(Qt::blue));
-    freq_plot->yAxis->setRange(db_lower,db_upper);
+    freq_plot->yAxis->setRange(y_min, y_max);
 
     // 允许x轴拖拽和缩放
     freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
     freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
     freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    // 仅禁用右边自动边距，保留其他方向自动计算
+    freq_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+    freq_plot->axisRect()->setMargins(QMargins(0,0,40,0));
     connect(freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
 void FreqPlotter::init_waterfall() {
-    time_freq_plot->xAxis->setRange(bin_lowest_display,bin_upmost_display);
+    time_freq_plot->xAxis->setRange(x_min, x_max);
     time_freq_plot->xAxis->setTicker(m_ticker);
-    time_freq_plot->yAxis->setRange(db_lower,db_upper);
+    time_freq_plot->yAxis->setRange(y_min, y_max);
     time_freq_plot->yAxis2->setRange(time_lower,time_upper);
-    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
 
     // 设置color scale
@@ -144,7 +151,7 @@ void FreqPlotter::init_waterfall() {
     color_scale->axis()->setTickLabels(false);
     color_scale->setRangeDrag(false);
     color_scale->setRangeZoom(false);
-    color_scale->setDataRange(QCPRange(db_lower, db_upper));
+    color_scale->setDataRange(QCPRange(y_min, y_max));
     // color scale对齐边界
     time_freq_plot->axisRect()->setMarginGroup(QCP::msTop | QCP::msBottom, group);
     color_scale->setMarginGroup(QCP::msTop | QCP::msBottom, group);
@@ -153,12 +160,15 @@ void FreqPlotter::init_waterfall() {
     color_map->setColorScale(color_scale);
     color_map->data()->setSize(map_xsize, map_ysize);
     color_map->setInterpolate(true);
-    color_map->data()->fill(db_minimum); // moving to QCPColorMapData constructor can speed up launch
+    color_map->data()->fill(y_min_limit); // moving to QCPColorMapData constructor can speed up launch
 
     // 允许x轴拖拽和缩放
     time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
     time_freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
     time_freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    // 仅禁用右边自动边距，保留其他方向自动计算
+    time_freq_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+    time_freq_plot->axisRect()->setMargins(QMargins(0,0,40,0));
     connect(time_freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
@@ -174,9 +184,9 @@ void FreqPlotter::set_fft_size(int size) {
     update_bin_ranges();
 
     // 更新横轴并重新绘图
-    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
-    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
-    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    time_freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
     freq_plot->replot();
     time_freq_plot->replot();
 }
@@ -198,9 +208,9 @@ void FreqPlotter::set_fft_display_mode(FFTDisplayMode mode) {
     update_bin_ranges();
 
     // 更新横轴并重新绘图
-    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
-    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
-    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    time_freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
     freq_plot->replot();
     time_freq_plot->replot();
 
@@ -211,14 +221,14 @@ FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
 }
 
 void FreqPlotter::set_plot_mode(PlotMode mode) {
-    freq_plot->setVisible(mode == Spectrum);
-    time_freq_plot->setVisible(mode == Waterfall);
+    freq_plot->setVisible(mode == SPECTRUM);
+    time_freq_plot->setVisible(mode == WATERFALL);
     m_plot_mode = mode;
 }
 
 void FreqPlotter::toggle_plot_mode() {
 
-    set_plot_mode(m_plot_mode == Spectrum ? Waterfall : Spectrum);
+    set_plot_mode(m_plot_mode == SPECTRUM ? WATERFALL : SPECTRUM);
 
 }
 
@@ -262,24 +272,24 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
 
 
     // 只画要显示的部分,节省资源
-    int bin_count_a = bin_upper - bin_lower + 1;
+    int bin_count_a = bin_max - bin_min + 1;
     int bin_count_b = freq_data.size();
     int bin_count = bin_count_a < bin_count_b ? bin_count_a : bin_count_b;
     int idx_vec = 0;
 
-    if(m_plot_mode == Spectrum){
+    if(m_plot_mode == SPECTRUM){
         // 先确定freq_bin_step，推出plot_size
         int plot_size = bin_count / freq_bin_step;
         QVector<double> x(plot_size), y(plot_size);
         for (int i = 0; i < plot_size; i++) {
-            idx_vec = bin_lower + i * freq_bin_step;
+            idx_vec = bin_min + i * freq_bin_step;
             x[i] = idx_vec;
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
             y[i] = static_cast<double>(freq_data[idx_vec]);
         }
         freq_plot->graph(0)->setData(x, y);
         freq_plot->replot();
-    } else if(m_plot_mode == Waterfall){
+    } else if(m_plot_mode == WATERFALL){
 
         // 所有data向后移动一行，空出第一行
         // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度
@@ -290,7 +300,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
         int plot_size = map_xsize * bin_count /  bin_count_a;
         double time_freq_bin_step = double(bin_count-1)/ plot_size;
         for (int i = 0; i < plot_size; i++) {
-            idx_vec = lround(bin_lower + i * time_freq_bin_step);
+            idx_vec = lround(bin_min + i * time_freq_bin_step);
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
             color_map->data()->setCellLatestRow(i, static_cast<double>(freq_data[idx_vec]));
         }
@@ -300,71 +310,78 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
 
 }
 
-int FreqPlotter::set_bin_range(int lo, int up) {
-    if (lo >= up) {
+int FreqPlotter::set_bin_range(int min, int max) {
+    if (min >= max) {
         return 0;
     }
 
     // 设置值不能超过端点，否则截断
-    if (lo < bin_lowest) {
-        lo = bin_lowest;
-    }
-    if (up > bin_upmost) {
-        up = bin_upmost;
+    int lo_diplay, up_display;
+    if (min <= bin_min_limit) {
+        bin_min = bin_min_limit;
+        x_min = x_min_limit;
+    }else{
+        bin_min = min;
+        x_min = min;
     }
 
-    // 设置bin range的值
-    bin_lower = lo;
-    bin_upper = up;
+    if (max >= bin_max_limit) {
+        bin_max = bin_max_limit;
+        x_max = x_max_limit;
+    } else {
+        bin_max = max;
+        x_max = max;
+    }
 
-    freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
+
+    freq_plot->xAxis->setRange(x_min, x_max);
     freq_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(bin_lowest_display, bin_upmost_display);
-    color_map->data()->setKeyRange(QCPRange(bin_lower, bin_upper));
+    time_freq_plot->xAxis->setRange(x_min, x_max);
+    color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
     time_freq_plot->replot();
     return 1;
 }
 
-int FreqPlotter::set_bin_lower(int lo) {
-    return set_bin_range(lo,bin_upper);
+int FreqPlotter::set_bin_min(int min) {
+    return set_bin_range(min, bin_max);
 }
 
-int FreqPlotter::set_bin_upper(int up) {
-    return set_bin_range(bin_lower,up);
+int FreqPlotter::set_bin_max(int max) {
+    return set_bin_range(bin_min, max);
 }
 
-int FreqPlotter::set_db_range(int lo, int up) {
-    if(lo >= up){
+int FreqPlotter::set_db_range(int min, int max) {
+    if(min >= max){
         return 0;
     }
 
-    if(lo < db_minimum){
-        lo = db_minimum;
+    if(min < y_min_limit){
+        min = y_min_limit;
     }
-    if(up > db_maximum){
-        up = db_maximum;
+    if(max > y_max_limit){
+        max = y_max_limit;
     }
 
-    db_lower = lo;
-    db_upper = up;
-    freq_plot->yAxis->setRange(db_lower, db_upper);
+    y_min = min;
+    y_max = max;
+    freq_plot->yAxis->setRange(y_min, y_max);
     freq_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->yAxis->setRange(db_lower, db_upper);
-    color_scale->setDataRange(QCPRange(db_lower, db_upper)); // 后续看看这个计算量大不大，可能会导致整个map重新算
+    time_freq_plot->yAxis->setRange(y_min, y_max);
+    color_scale->setDataRange(QCPRange(y_min, y_max)); // 后续看看这个计算量大不大，可能会导致整个map重新算
     time_freq_plot->replot();
     return 1;
 }
 
-int FreqPlotter::set_db_lower(int lo) {
-    return set_db_range(lo,db_upper);
+int FreqPlotter::set_db_min(int min) {
+    return set_db_range(min, y_max);
 }
 
-int FreqPlotter::set_db_upper(int up) {
-    return set_db_range(db_lower,up);
+int FreqPlotter::set_db_max(int max) {
+    return set_db_range(y_min, max);
 }
 
 
@@ -372,16 +389,16 @@ int FreqPlotter::set_db_upper(int up) {
 void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     QCPRange clampedRange = newRange;
 
-    // 限制下限不低于 bin_lowest
-    if (clampedRange.lower < bin_lowest_display) {
-        clampedRange.lower = bin_lowest_display;
-        clampedRange.upper = clampedRange.size() + bin_lowest_display;
+    // 限制下限不低于 bin_min_limit
+    if (clampedRange.lower < x_min) {
+        clampedRange.lower = x_min;
+        clampedRange.upper = clampedRange.size() + x_min;
     }
 
-    // 限制上限不高于 bin_upmost
-    if (clampedRange.upper > bin_upmost_display) {
-        clampedRange.upper = bin_upmost_display;
-        clampedRange.lower = bin_upmost_display - clampedRange.size();
+    // 限制上限不高于 bin_max_limit
+    if (clampedRange.upper > x_max) {
+        clampedRange.upper = x_max;
+        clampedRange.lower = x_max - clampedRange.size();
     }
 
     // 如果范围需要修正，则更新
@@ -460,31 +477,33 @@ void FreqPlotter::update_bin_ranges() {
     switch (m_fft_mode) {
         case FULL_SEQUENTIAL:
         default:
-            bin_lowest = 0;
-            bin_upmost = m_fft_size - 1;
-            bin_lowest_display = 0;
-            bin_upmost_display = m_fft_size;
+            bin_min_limit = 0;
+            bin_max_limit = m_fft_size - 1;
+            x_min_limit = 0;
+            x_max_limit = m_fft_size;
             break;
         case FULL_SHIFTED:
-            bin_lowest = mid + 1 - m_fft_size;
-            bin_upmost = mid;
-            bin_lowest_display = -mid;
-            bin_upmost_display = mid;
+            bin_min_limit = mid + 1 - m_fft_size;
+            bin_max_limit = mid;
+            x_min_limit = -mid;
+            x_max_limit = mid;
             break;
         case HALF_LOWER:
-            bin_lowest = bin_lowest_display = 0;;
-            bin_upmost = bin_upmost_display = mid;
+            bin_min_limit = x_min_limit = 0;;
+            bin_max_limit = x_max_limit = mid;
             break;
         case HALF_UPPER:
-            bin_lowest = mid + 1;
-            bin_upmost = m_fft_size - 1;
-            bin_lowest_display = mid;
-            bin_upmost_display = m_fft_size;
+            bin_min_limit = mid + 1;
+            bin_max_limit = m_fft_size - 1;
+            x_min_limit = mid;
+            x_max_limit = m_fft_size;
             break;
     }
 
-    bin_lower = bin_lowest;
-    bin_upper = bin_upmost;
+    bin_min = bin_min_limit;
+    bin_max = bin_max_limit;
+    x_min = x_min_limit;
+    x_max = x_max_limit;
 }
 
 
