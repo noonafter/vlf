@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->widget_if->set_fft_size(8192);
     ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
 
-    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::Spectrum, FreqPlotter::FULL_SHIFTED);
+    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::Spectrum, FreqPlotter::HALF_UPPER);
 
     QLayout *layout_ddc = new QHBoxLayout();
     layout_ddc->addWidget(freqPlotter_ddc);

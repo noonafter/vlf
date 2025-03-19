@@ -10,7 +10,7 @@
 
 // 支持两种绘图模式：功率谱图；瀑布图，见PlotMode
 // 支持模式动态切换，两种模式均通过槽函数plot_freq进行绘制
-// 支持4种FFT显示模式：见FFTDisplayMode
+// 支持4种FFT显示模式：全部FFT点顺序，全部FFT点移位，下半FFT，上半FFT，见FFTDisplayMode
 // 支持刷新率动态调整及图像暂停，默认30fps
 //
 // todo：
@@ -21,8 +21,9 @@
 // 支持功率谱图定点频率测量
 // 支持功率谱图峰值显示，AB标签
 // 支持瀑布图（色图）尺寸及调色板动态调整
-// 需要对四种模式情况进行测试，查看xAxis的坐标值是否正确
 // 后续对set_fsa函数进行更改，加上默认单位
+// 目前测试频率轴范围显示，在fftsize为偶数时，没问题，奇数时，只是ticklabel不好读，但也没问题
+// 画图plot_freq_impl中校验可能要改，根据bin_display校验，而不是count
 
 class FreqPlotter : public QWidget {
 Q_OBJECT
@@ -133,10 +134,8 @@ private:
 
     // TODO：加上waterfall一起调
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
-    // freq时间平均，滑动窗
+    // freq时间平均，滑动窗，绘图部分不好做，因为fftsize可能会变，和单位一样，需要放到处理模块中，
     // waterfall加色卡
-    // bin_upmost是指的bin_upper能取的上界，但是显示的时候，还需要一个bin_upmost_display，需要测试4中模式上下边境是否正确
-    // 内嵌类继承QCPAxis，重写draw
     // 突然有个思路：自定义内嵌类FreqMap继承QCPColorMap，添加setCellLatestRow，updateMapImageTranslate，shiftRowsBackward，
     // 这样不用破坏qcustomplot的封装完整性，直接将FreqPlotter拷到其他带有qcustomplot文件的工程中就可以使用
     // 改动之后，只需要将原来的成员QCPColorMap *color_map换成FreqMap *color_map，改一下new的地方，其他地方都不用改
