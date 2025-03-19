@@ -8,16 +8,16 @@
 #include <QWidget>
 #include "qcustomplot.h"
 
-// 支持两种绘图模式：功率谱图；瀑布图，见PlotMode
-// 支持模式动态切换，两种模式均通过槽函数plot_freq进行绘制
-// 支持4种FFT显示模式：全部FFT点顺序，全部FFT点移位，下半FFT，上半FFT，见FFTDisplayMode
+// 支持两种绘图模式：功率谱图；瀑布图，并支持模式动态切换。
+// 支持4种FFT显示模式：全部FFT点顺序，全部FFT点移位，下半FFT，上半FFT。
 // 支持刷新率动态调整及图像暂停，默认30fps
 //
 // todo：
-// 支持频率轴范围及显示精度动态调整
-// 支持频率轴缩放和拖拽
-// 支持dBm范围及单位动态调整
-// 支持功率谱图频率间隔动态调整
+// 支持频率轴显示范围动态调整，显示精度自适应调整
+// 支持频率轴拖拽与缩放
+// 支持频率轴采样率及单位动态调整
+// 支持dB范围及单位动态调整
+// 支持功率谱图频率轴绘图间隔动态调整，默认间隔1
 // 支持功率谱图定点频率测量
 // 支持功率谱图峰值显示，AB标签
 // 支持瀑布图（色图）尺寸及调色板动态调整
@@ -66,6 +66,7 @@ public:
     int set_db_max(int max);
     void set_plot_paused(bool paused);
     void set_frame_per_second(int fps);
+    void set_palette(int idx);
     void toggle_plot_mode();
     void plot_freq(const QVector<double>& freq_data);
     void plot_freq(const QVector<float>& freq_data);
@@ -79,13 +80,15 @@ private:
     public:
         explicit FreqTicker(const FreqPlotter* parent);
     protected:
-        // 重写 generate 以捕获当前刻度步长
+        // 重写TickStep
         double getTickStep(const QCPRange &range) override;
         // 动态调整小数位数
         QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override;
+        // 重写subTick个数
+        int getSubTickCount(double tickStep) override;
     private:
         const FreqPlotter* m_parent;
-        double m_freq_step; // 当前刻度间隔（步长）
+        double tick_freq_step; // 当前刻度间隔（步长）
     };
 
     static bool registeredMetaTypes;     // 静态标志位
@@ -132,17 +135,15 @@ private:
     QCPMarginGroup *group;
     QSharedPointer<FreqTicker> m_ticker;
     QElapsedTimer timer_plot;
+    QCPColorGradient color_gradient;
 
-
-    // TODO：加上waterfall一起调
+    // TODO：
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
     // freq时间平均，滑动窗，绘图部分不好做，因为fftsize可能会变，和单位一样，需要放到处理模块中，
-    // waterfall加色卡
     // 突然有个思路：自定义内嵌类FreqMap继承QCPColorMap，添加setCellLatestRow，updateMapImageTranslate，shiftRowsBackward，
     // 这样不用破坏qcustomplot的封装完整性，直接将FreqPlotter拷到其他带有qcustomplot文件的工程中就可以使用
     // 改动之后，只需要将原来的成员QCPColorMap *color_map换成FreqMap *color_map，改一下new的地方，其他地方都不用改
     // QCPAxisTicker还有subtick
-
 
     void init();
     void init_spectrum();

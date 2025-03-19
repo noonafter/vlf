@@ -100,6 +100,7 @@ void FreqPlotter::init() {
     color_map = new QCPColorMap(time_freq_plot->xAxis, time_freq_plot->yAxis2);
     group = new QCPMarginGroup(time_freq_plot);
     m_ticker = QSharedPointer<FreqTicker>(new FreqTicker(this));
+    color_gradient = QCPColorGradient::gpSpectrum;
 
     // 对容器进行布局
     layout->addWidget(freq_plot);
@@ -158,6 +159,7 @@ void FreqPlotter::init_waterfall() {
 
     // 设置color map
     color_map->setColorScale(color_scale);
+    color_map->setGradient(color_gradient);
     color_map->data()->setSize(map_xsize, map_ysize);
     color_map->setInterpolate(true);
     color_map->data()->fill(y_min_limit); // moving to QCPColorMapData constructor can speed up launch
@@ -426,22 +428,20 @@ void FreqPlotter::set_frame_per_second(int fps) {
 }
 
 // FreqTicker实现
-FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent), m_freq_step(0){
+FreqPlotter::FreqTicker::FreqTicker(const FreqPlotter *parent) : m_parent(parent), tick_freq_step(0){
 }
 
 
 QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) {
-    // 根据步长动态计算小数位数
+    // 通过 log10 计算步长的量级，动态确定小数位数
+    const double step = tick_freq_step;
     int dynamicPrecision = 0;
-    // 规则：步长<0.1:显示2位，步长<1:显示1位，否则0位
-    if(m_freq_step < 0.01){
-        dynamicPrecision = 3;
-    } else if (m_freq_step < 0.1) {
-        dynamicPrecision = 2;
-    } else if (m_freq_step < 1) {
-        dynamicPrecision = 1;
-    } else {
-        dynamicPrecision = 0;
+
+    if (step > 0) {
+        // 核心公式：通过 log10 计算步长的量级指数
+        int exp = static_cast<int>(std::floor(std::log10(step)));
+        // 将指数转换为小数位数（例如：step=0.01 → exp=-2 → precision=2）
+        dynamicPrecision = std::max(0, -exp);
     }
 
     // 计算频率值
@@ -454,12 +454,18 @@ QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale
 double FreqPlotter::FreqTicker::getTickStep(const QCPRange &range) {
 
     // 固定 6 个刻度
-    int tickCount = 6;
+    const int tickCount = 6;
 
     // 计算步长
     double tick_step = (range.upper - range.lower) / (tickCount - 1);
-    m_freq_step = tick_step * m_parent->m_fsa / m_parent->m_fft_size;
+    tick_freq_step = tick_step * m_parent->m_fsa / m_parent->m_fft_size;
     return tick_step;
+}
+
+int FreqPlotter::FreqTicker::getSubTickCount(double tickStep) {
+    // 固定4个子刻度，将tick段分为5节
+    const int subTickCount = 4;
+    return subTickCount;
 }
 
 bool FreqPlotter::registeredMetaTypes = false;
@@ -504,6 +510,36 @@ void FreqPlotter::update_bin_ranges() {
     bin_max = bin_max_limit;
     x_min = x_min_limit;
     x_max = x_max_limit;
+}
+
+void FreqPlotter::set_palette(int idx){
+
+    /* enum GradientPreset {
+         gpGrayscale
+        ,gpHot
+        ,gpCold
+        ,gpNight
+        ,gpCandy
+        ,gpGeography
+        ,gpIon
+        ,gpThermal
+        ,gpPolar
+        ,gpSpectrum
+        ,gpJet
+        ,gpHues
+    }; */
+
+    // 定义枚举项总数
+    const int presetCount = 12; // 例如：gpGrayscale(0) ~ gpHues(11)
+
+    // 检查 idx 有效性，超出范围则重置为默认（gpGrayscale）
+    if (idx < 0 || idx >= presetCount) {
+        idx = 0;
+    }
+
+    color_gradient = static_cast<QCPColorGradient::GradientPreset>(idx);
+    color_map->setGradient(color_gradient);
+
 }
 
 
