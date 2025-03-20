@@ -17,6 +17,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::SPECTRUM, FreqPlotter::FULL_SHIFTED);
+    freqPlotter_ddc->set_sample_rate(300);
     ui->widget_ddc->setLayout(new QHBoxLayout());
     ui->widget_ddc->layout()->addWidget(freqPlotter_ddc);
 
