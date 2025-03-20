@@ -29,6 +29,7 @@ public:
     explicit VLFChannel(QObject *parent = nullptr);
     VLFChannel(int idx_ch);
     bool package_enqueue(const QByteArray &package);
+    void set_idx_sub_ch(int idx);
 
     ~VLFChannel();
 
@@ -60,6 +61,7 @@ private:
     // 缓存用QByteArray，不用C风格的数组，QByteArray的数据，析构时自动释放了
     QByteArray rawdata_buf;
     int recv_count;
+    int idx_sub_ch_display = 0;
 
 
 

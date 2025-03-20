@@ -12,19 +12,18 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 获取资源（对象）
     ui->setupUi(this);
-    ui->range_slider_db_ddc->SetRange(-160, 10);
-    ui->range_slider_bin_ddc->SetRange(-300,300);
+    ui->range_slider_db_if->SetRange(-160, 10);
+    ui->range_slider_bin_if->SetRange(0,300);
 
-    ui->widget_if->set_sample_rate(192000);
-    ui->widget_if->set_fft_size(8192);
-    ui->widget_if->set_fft_display_mode(FreqPlotter::HALF_LOWER);
 
-    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::SPECTRUM, FreqPlotter::HALF_UPPER);
+    FreqPlotter *freqPlotter_ddc = new FreqPlotter(512, FreqPlotter::SPECTRUM, FreqPlotter::FULL_SHIFTED);
+    ui->widget_ddc->setLayout(new QHBoxLayout());
+    ui->widget_ddc->layout()->addWidget(freqPlotter_ddc);
 
-    QLayout *layout_ddc = new QHBoxLayout();
-    layout_ddc->addWidget(freqPlotter_ddc);
-
-    ui->widget_ddc->setLayout(layout_ddc);
+    FreqPlotter *freqPlotter_if = new FreqPlotter(8192, FreqPlotter::SPECTRUM, FreqPlotter::HALF_LOWER);
+    freqPlotter_if->set_sample_rate(192000);
+    ui->widget_if->setLayout(new QHBoxLayout());
+    ui->widget_if->layout()->addWidget(freqPlotter_if);
 
 
     QString file_name = QCoreApplication::applicationDirPath() + "/" + "receiver_config.json";
@@ -49,19 +48,23 @@ MainWindow::MainWindow(QWidget *parent)
             &FreqPlotter::set_db_max);
 
 
-    connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, ui->widget_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
-    connect(ui->pushButton_mode_if, &QPushButton::clicked, ui->widget_if, &FreqPlotter::toggle_plot_mode);
-    connect(ui->range_slider_db_ddc,&RangeSlider::lowerValueChanged,ui->widget_if, &FreqPlotter::set_db_min);
-    connect(ui->range_slider_db_ddc,&RangeSlider::upperValueChanged,ui->widget_if, &FreqPlotter::set_db_max);
-//    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,ui->widget_if,&FreqPlotter::set_bin_min);
-//    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,ui->widget_if,&FreqPlotter::set_bin_max);
+    connect(vlf_ch[0], &VLFChannel::subch_freq_if_ready, freqPlotter_if, QOverload<const QVector<float>&>::of(&FreqPlotter::plot_freq));
+    connect(ui->pushButton_mode_if, &QPushButton::clicked, freqPlotter_if, &FreqPlotter::toggle_plot_mode);
+    connect(ui->range_slider_db_if,&RangeSlider::lowerValueChanged,freqPlotter_if, &FreqPlotter::set_db_min);
+    connect(ui->range_slider_db_if,&RangeSlider::upperValueChanged,freqPlotter_if, &FreqPlotter::set_db_max);
 
-    connect(ui->range_slider_bin_ddc,&RangeSlider::lowerValueChanged,[=](int lo){
-        ui->widget_if->set_bin_min(lo * ui->widget_if->get_fft_size() / 300);
+    connect(ui->range_slider_bin_if,&RangeSlider::lowerValueChanged,[=](int lo){
+        freqPlotter_if->set_bin_min(lo * freqPlotter_if->get_fft_size() / 300);
     });
-    connect(ui->range_slider_bin_ddc,&RangeSlider::upperValueChanged,[=](int up){
-        ui->widget_if->set_bin_max(up * ui->widget_if->get_fft_size() / 300);
+    connect(ui->range_slider_bin_if,&RangeSlider::upperValueChanged,[=](int up){
+        freqPlotter_if->set_bin_max(up * freqPlotter_if->get_fft_size() / 300);
     });
+
+    connect(ui->spinBox_subch, QOverload<int>::of(&QSpinBox::valueChanged),vlf_ch[0],&VLFChannel::set_idx_sub_ch);
+    connect(ui->spinBox_subch, QOverload<int>::of(&QSpinBox::valueChanged),this,[=](int idx){
+        ui->label_subch->setText(QString::number(0.15*idx+10.05));
+    });
+
     // 处理业务逻辑，保证线程安全
     // 具体业务逻辑：
     // vlf_receiver移动到recv_thread线程，保证协议数据包接收和分发单独使用一个线程，不会卡住主线程

@@ -426,7 +426,7 @@ void VLFChannel::slot_business_package_enqueued() {
             fftwf_execute(fplan512);
             QVector<float> freq_data(512);
 
-            if(i == 3){
+            if(i == idx_sub_ch_display){
 
                 for (int j = 0; j < 512; j++) {
                     std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
@@ -463,6 +463,10 @@ void VLFChannel::roundSeconds(QDateTime &dateTime) {
         rseconds = 0;
 
     dateTime.setTime(QTime(dateTime.time().hour(), dateTime.time().minute(), rseconds));
+}
+
+void VLFChannel::set_idx_sub_ch(int idx) {
+    idx_sub_ch_display = idx;
 }
 
 

@@ -11,19 +11,22 @@
 // 支持两种绘图模式：功率谱图；瀑布图，并支持模式动态切换。
 // 支持4种FFT显示模式：全部FFT点顺序，全部FFT点移位，下半FFT，上半FFT。
 // 支持刷新率动态调整及图像暂停，默认30fps
-//
-// todo：
 // 支持频率轴显示范围动态调整，显示精度自适应调整
 // 支持频率轴拖拽与缩放
-// 支持频率轴采样率及单位动态调整
+// 支持功率谱图定点频率测量(双击)
+
+// todo：
+// 平均还是得加！！！即时fftsize变化时会清空？？？
+// 支持频率轴采样率及单位动态调整，后续对set_fsa函数进行更改，加上默认单位，中心频率
 // 支持dB范围及单位动态调整
 // 支持功率谱图频率轴绘图间隔动态调整，默认间隔1
-// 支持功率谱图定点频率测量
+
 // 支持功率谱图峰值显示，AB标签
 // 支持瀑布图（色图）尺寸及调色板动态调整
-// 后续对set_fsa函数进行更改，加上默认单位
-// 目前测试频率轴范围显示，在fftsize为偶数时，没问题，奇数时，只是ticklabel不好读，但也没问题
+// 模式切换后，瀑布图任然一直在画，加一个mapinited开关，开始时关闭不画map，一旦切换到了waterfall就打开
 // 画图plot_freq_impl中校验可能要改，根据bin_display校验，而不是count
+
+class QMarkLine;
 
 class FreqPlotter : public QWidget {
 Q_OBJECT
@@ -120,6 +123,8 @@ private:
     qint64 cnt_plot_time;
     // 频谱图参数
     int freq_bin_step; // 频谱图bin间隔
+    double line_x;
+    double line_y;
     // 瀑布图参数
     int map_xsize;
     int map_ysize;
@@ -128,14 +133,15 @@ private:
 
     // 绘图成员&指针
     QVBoxLayout *layout;
-    QCustomPlot *freq_plot;
-    QCustomPlot *time_freq_plot;
+    QCustomPlot *spectrum_plot;
+    QCustomPlot *waterfall_plot;
     QCPColorScale *color_scale;
     QCPColorMap *color_map;
     QCPMarginGroup *group;
     QSharedPointer<FreqTicker> m_ticker;
     QElapsedTimer timer_plot;
     QCPColorGradient color_gradient;
+    QMarkLine *mark_line_spectrum;
 
     // TODO：
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
@@ -156,5 +162,23 @@ private:
 
 };
 
+
+class QMarkLine : public QObject {
+Q_OBJECT
+public:
+    explicit QMarkLine(QCustomPlot *parent = nullptr);
+
+    void set_pos(double mx); // coord position
+    void set_text(const QString &text);
+    void set_visible(bool vis);
+    void set_color(Qt::GlobalColor color);
+
+private:
+    QCustomPlot *qcp;
+    QCPItemLine *itemLine;
+    QCPItemText *textLabel;
+
+    int first_loaded = false;
+};
 
 #endif //VLF_FREQPLOTTER_H

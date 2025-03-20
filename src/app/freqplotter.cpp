@@ -36,8 +36,8 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       time_lower(0),
       time_upper(map_ysize),
       layout(nullptr),         // 指针成员显式初始化为nullptr
-      freq_plot(nullptr),
-      time_freq_plot(nullptr),
+      spectrum_plot(nullptr),
+      waterfall_plot(nullptr),
       color_scale(nullptr),
       color_map(nullptr),
       group(nullptr)
@@ -75,8 +75,8 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       time_lower(0),
       time_upper(map_ysize),
       layout(nullptr),         // 指针成员显式初始化为nullptr
-      freq_plot(nullptr),
-      time_freq_plot(nullptr),
+      spectrum_plot(nullptr),
+      waterfall_plot(nullptr),
       color_scale(nullptr),
       color_map(nullptr),
       group(nullptr)
@@ -94,17 +94,18 @@ void FreqPlotter::init() {
 
     // 获取资源
     layout = new QVBoxLayout(this);
-    freq_plot = new QCustomPlot(this);
-    time_freq_plot = new QCustomPlot(this);
-    color_scale = new QCPColorScale(time_freq_plot);
-    color_map = new QCPColorMap(time_freq_plot->xAxis, time_freq_plot->yAxis2);
-    group = new QCPMarginGroup(time_freq_plot);
+    spectrum_plot = new QCustomPlot(this);
+    waterfall_plot = new QCustomPlot(this);
+    color_scale = new QCPColorScale(waterfall_plot);
+    color_map = new QCPColorMap(waterfall_plot->xAxis, waterfall_plot->yAxis2);
+    group = new QCPMarginGroup(waterfall_plot);
     m_ticker = QSharedPointer<FreqTicker>(new FreqTicker(this));
     color_gradient = QCPColorGradient::gpSpectrum;
+    mark_line_spectrum = new QMarkLine(spectrum_plot);
 
     // 对容器进行布局
-    layout->addWidget(freq_plot);
-    layout->addWidget(time_freq_plot);
+    layout->addWidget(spectrum_plot);
+    layout->addWidget(waterfall_plot);
     this->setLayout(layout);
 
     // 完成画布初始化
@@ -120,41 +121,46 @@ void FreqPlotter::init() {
 }
 
 void FreqPlotter::init_spectrum() {
-    freq_plot->xAxis->setRange(x_min, x_max);
-    freq_plot->xAxis->setTicker(m_ticker);
-    freq_plot->addGraph();
-    freq_plot->graph(0)->setName("rx");
-    freq_plot->graph(0)->setPen(QPen(Qt::blue));
-    freq_plot->yAxis->setRange(y_min, y_max);
+    spectrum_plot->xAxis->setRange(x_min, x_max);
+    spectrum_plot->xAxis->setTicker(m_ticker);
+    spectrum_plot->addGraph();
+    spectrum_plot->graph(0)->setName("rx");
+    spectrum_plot->graph(0)->setPen(QPen(Qt::blue));
+    spectrum_plot->yAxis->setRange(y_min, y_max);
 
     // 允许x轴拖拽和缩放
-    freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
-    freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
-    freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    spectrum_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    spectrum_plot->axisRect()->setRangeDrag(Qt::Horizontal);
+    spectrum_plot->axisRect()->setRangeZoom(Qt::Horizontal);
     // 仅禁用右边自动边距，保留其他方向自动计算
-    freq_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
-    freq_plot->axisRect()->setMargins(QMargins(0,0,40,0));
-    connect(freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
+    spectrum_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+    spectrum_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
+    connect(spectrum_plot->xAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
+    connect(spectrum_plot, &QCustomPlot::mouseDoubleClick, this, [=](QMouseEvent *event){
+        line_x = spectrum_plot->xAxis->pixelToCoord(event->pos().x());
+        mark_line_spectrum->set_pos(line_x);
+        spectrum_plot->replot();
+    });
 }
 
 void FreqPlotter::init_waterfall() {
-    time_freq_plot->xAxis->setRange(x_min, x_max);
-    time_freq_plot->xAxis->setTicker(m_ticker);
-    time_freq_plot->yAxis->setRange(y_min, y_max);
-    time_freq_plot->yAxis2->setRange(time_lower,time_upper);
+    waterfall_plot->xAxis->setRange(x_min, x_max);
+    waterfall_plot->xAxis->setTicker(m_ticker);
+    waterfall_plot->yAxis->setRange(y_min, y_max);
+    waterfall_plot->yAxis2->setRange(time_lower, time_upper);
     color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
     color_map->data()->setValueRange(QCPRange(time_lower, time_upper));
 
     // 设置color scale
-    time_freq_plot->plotLayout()->insertColumn(0);
-    time_freq_plot->plotLayout()->addElement(0, 0, color_scale);
+    waterfall_plot->plotLayout()->insertColumn(0);
+    waterfall_plot->plotLayout()->addElement(0, 0, color_scale);
     color_scale->setBarWidth(6);
     color_scale->axis()->setTickLabels(false);
     color_scale->setRangeDrag(false);
     color_scale->setRangeZoom(false);
     color_scale->setDataRange(QCPRange(y_min, y_max));
     // color scale对齐边界
-    time_freq_plot->axisRect()->setMarginGroup(QCP::msTop | QCP::msBottom, group);
+    waterfall_plot->axisRect()->setMarginGroup(QCP::msTop | QCP::msBottom, group);
     color_scale->setMarginGroup(QCP::msTop | QCP::msBottom, group);
 
     // 设置color map
@@ -165,13 +171,13 @@ void FreqPlotter::init_waterfall() {
     color_map->data()->fill(y_min_limit); // moving to QCPColorMapData constructor can speed up launch
 
     // 允许x轴拖拽和缩放
-    time_freq_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
-    time_freq_plot->axisRect()->setRangeDrag(Qt::Horizontal);
-    time_freq_plot->axisRect()->setRangeZoom(Qt::Horizontal);
+    waterfall_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    waterfall_plot->axisRect()->setRangeDrag(Qt::Horizontal);
+    waterfall_plot->axisRect()->setRangeZoom(Qt::Horizontal);
     // 仅禁用右边自动边距，保留其他方向自动计算
-    time_freq_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
-    time_freq_plot->axisRect()->setMargins(QMargins(0,0,40,0));
-    connect(time_freq_plot->xAxis,QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
+    waterfall_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+    waterfall_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
+    connect(waterfall_plot->xAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
 int FreqPlotter::get_fft_size() const {
@@ -186,11 +192,11 @@ void FreqPlotter::set_fft_size(int size) {
     update_bin_ranges();
 
     // 更新横轴并重新绘图
-    freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
-    time_freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    spectrum_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    waterfall_plot->xAxis->setRange(x_min_limit, x_max_limit);
     color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
-    freq_plot->replot();
-    time_freq_plot->replot();
+    spectrum_plot->replot();
+    waterfall_plot->replot();
 }
 
 double FreqPlotter::get_sample_rate() const {
@@ -210,11 +216,11 @@ void FreqPlotter::set_fft_display_mode(FFTDisplayMode mode) {
     update_bin_ranges();
 
     // 更新横轴并重新绘图
-    freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
-    time_freq_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    spectrum_plot->xAxis->setRange(x_min_limit, x_max_limit);
+    waterfall_plot->xAxis->setRange(x_min_limit, x_max_limit);
     color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
-    freq_plot->replot();
-    time_freq_plot->replot();
+    spectrum_plot->replot();
+    waterfall_plot->replot();
 
 }
 
@@ -223,8 +229,8 @@ FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
 }
 
 void FreqPlotter::set_plot_mode(PlotMode mode) {
-    freq_plot->setVisible(mode == SPECTRUM);
-    time_freq_plot->setVisible(mode == WATERFALL);
+    spectrum_plot->setVisible(mode == SPECTRUM);
+    waterfall_plot->setVisible(mode == WATERFALL);
     m_plot_mode = mode;
 }
 
@@ -279,7 +285,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
     int bin_count = bin_count_a < bin_count_b ? bin_count_a : bin_count_b;
     int idx_vec = 0;
 
-    if(m_plot_mode == SPECTRUM){
+    if(m_plot_mode == SPECTRUM && spectrum_plot){
         // 先确定freq_bin_step，推出plot_size
         int plot_size = bin_count / freq_bin_step;
         QVector<double> x(plot_size), y(plot_size);
@@ -289,9 +295,24 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
             y[i] = static_cast<double>(freq_data[idx_vec]);
         }
-        freq_plot->graph(0)->setData(x, y);
-        freq_plot->replot();
-    } else if(m_plot_mode == WATERFALL){
+        spectrum_plot->graph(0)->setData(x, y);
+
+        // 更新markline
+        if (line_x < bin_min) {
+            line_x = bin_min;
+        } else if (line_x > bin_max) {
+            line_x = bin_max;
+        }
+        QString txt_label = QString("%1Hz\n%2dBm").arg(m_fsa/m_fft_size*line_x);
+        if(spectrum_plot->graph(0)){
+            line_y = spectrum_plot->graph(0)->data()->findBegin(line_x)->value;
+            txt_label = txt_label.arg((int) line_y);
+        }
+        mark_line_spectrum->set_text(txt_label);
+
+        // 更新绘图
+        spectrum_plot->replot();
+    } else if(m_plot_mode == WATERFALL && waterfall_plot && color_map){
 
         // 所有data向后移动一行，空出第一行
         // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度
@@ -307,7 +328,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
             color_map->data()->setCellLatestRow(i, static_cast<double>(freq_data[idx_vec]));
         }
         color_map->updateMapImageTranslate();
-        time_freq_plot->replot();
+        waterfall_plot->replot();
     }
 
 }
@@ -336,13 +357,13 @@ int FreqPlotter::set_bin_range(int min, int max) {
     }
 
 
-    freq_plot->xAxis->setRange(x_min, x_max);
-    freq_plot->replot();
+    spectrum_plot->xAxis->setRange(x_min, x_max);
+    spectrum_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->xAxis->setRange(x_min, x_max);
+    waterfall_plot->xAxis->setRange(x_min, x_max);
     color_map->data()->setKeyRange(QCPRange(bin_min, bin_max));
-    time_freq_plot->replot();
+    waterfall_plot->replot();
     return 1;
 }
 
@@ -368,13 +389,13 @@ int FreqPlotter::set_db_range(int min, int max) {
 
     y_min = min;
     y_max = max;
-    freq_plot->yAxis->setRange(y_min, y_max);
-    freq_plot->replot();
+    spectrum_plot->yAxis->setRange(y_min, y_max);
+    spectrum_plot->replot();
 
     // time_freq图跟随设置
-    time_freq_plot->yAxis->setRange(y_min, y_max);
+    waterfall_plot->yAxis->setRange(y_min, y_max);
     color_scale->setDataRange(QCPRange(y_min, y_max)); // 后续看看这个计算量大不大，可能会导致整个map重新算
-    time_freq_plot->replot();
+    waterfall_plot->replot();
     return 1;
 }
 
@@ -385,8 +406,6 @@ int FreqPlotter::set_db_min(int min) {
 int FreqPlotter::set_db_max(int max) {
     return set_db_range(y_min, max);
 }
-
-
 
 void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
     QCPRange clampedRange = newRange;
@@ -405,10 +424,10 @@ void FreqPlotter::clamp_xaxis_range(const QCPRange &newRange) {
 
     // 如果范围需要修正，则更新
     if (clampedRange != newRange) {
-        freq_plot->xAxis->setRange(clampedRange);
-        time_freq_plot->xAxis->setRange(clampedRange);
-        freq_plot->replot();
-        time_freq_plot->replot();
+        spectrum_plot->xAxis->setRange(clampedRange);
+        waterfall_plot->xAxis->setRange(clampedRange);
+        spectrum_plot->replot();
+        waterfall_plot->replot();
     }
 }
 
@@ -543,4 +562,74 @@ void FreqPlotter::set_palette(int idx){
 }
 
 
+QMarkLine::QMarkLine(QCustomPlot *parent) : QObject(parent) {
+    qcp = parent;
+    itemLine = new QCPItemLine(parent);
+    textLabel = new QCPItemText(parent);
+
+    itemLine->setPen(QPen(Qt::red));
+    itemLine->start->setTypeX(QCPItemPosition::ptPlotCoords);
+    itemLine->start->setTypeY(QCPItemPosition::ptAbsolute);
+    itemLine->end->setTypeX(QCPItemPosition::ptPlotCoords);
+    itemLine->end->setTypeY(QCPItemPosition::ptAbsolute);
+
+    textLabel->setColor(Qt::red);
+    textLabel->position->setTypeX(QCPItemPosition::ptPlotCoords);
+    textLabel->position->setTypeY(QCPItemPosition::ptAbsolute);
+
+    set_visible(false);
+
+}
+
+void QMarkLine::set_pos(double mx) {
+
+    if(!qcp || !textLabel || !itemLine)
+        return;
+
+    double textX = mx;
+    int label_height_pixel = textLabel->bottom->pixelPosition().y() - textLabel->top->pixelPosition().y();
+
+//    int label_width_pixel = textLabel->right->pixelPosition().x() - textLabel->left->pixelPosition().x();
+//    double mouseX_pixel = qcp->xAxis->coordToPixel(mx);
+//    int min_pixel = qcp->axisRect()->left() + 0.5 * label_width_pixel;
+//    int max_pixel = qcp->axisRect()->right() - 0.5 * label_width_pixel;
+//    if (mouseX_pixel < min_pixel) {
+//        textX = qcp->xAxis->pixelToCoord(min_pixel + 3); // plus 3, avoid pixel overlap
+//    }
+//
+//    if (mouseX_pixel > max_pixel) {
+//        textX = qcp->xAxis->pixelToCoord(max_pixel - 3);
+//    }
+
+    itemLine->start->setCoords(mx, qcp->axisRect()->bottom());
+    itemLine->end->setCoords(mx, qcp->axisRect()->top() + label_height_pixel);
+    textLabel->position->setCoords(textX, qcp->axisRect()->top() + 0.5 * label_height_pixel);
+
+    if (!first_loaded) {
+        set_visible(true);
+        first_loaded = true;
+    }
+}
+
+void QMarkLine::set_text(const QString &text) {
+    if(!textLabel)
+        return;
+    textLabel->setText(text);
+
+}
+
+void QMarkLine::set_visible(bool vis) {
+    if(!textLabel || !itemLine)
+        return;
+    itemLine->setVisible(vis);
+    textLabel->setVisible(vis);
+}
+
+void QMarkLine::set_color(Qt::GlobalColor color) {
+    if(!textLabel || !itemLine)
+        return;
+    itemLine->setPen(QPen(color));
+    textLabel->setColor(color);
+
+}
 
