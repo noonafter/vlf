@@ -52,7 +52,7 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       m_plot_mode(plot_mode),
       m_fft_mode(fft_mode),
       fft_size_inited(true),
-      m_fsa(2),
+      m_fsa(m_fft_size),
       x_min_limit(0),
       x_max_limit(m_fft_size),
       x_min(x_min_limit),
@@ -133,8 +133,8 @@ void FreqPlotter::init_spectrum() {
     spectrum_plot->axisRect()->setRangeDrag(Qt::Horizontal);
     spectrum_plot->axisRect()->setRangeZoom(Qt::Horizontal);
     // 仅禁用右边自动边距，保留其他方向自动计算
-    spectrum_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
-    spectrum_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
+//    spectrum_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+//    spectrum_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
     connect(spectrum_plot->xAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
     connect(spectrum_plot, &QCustomPlot::mouseDoubleClick, this, [=](QMouseEvent *event){
         line_x = spectrum_plot->xAxis->pixelToCoord(event->pos().x());
@@ -175,8 +175,8 @@ void FreqPlotter::init_waterfall() {
     waterfall_plot->axisRect()->setRangeDrag(Qt::Horizontal);
     waterfall_plot->axisRect()->setRangeZoom(Qt::Horizontal);
     // 仅禁用右边自动边距，保留其他方向自动计算
-    waterfall_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
-    waterfall_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
+//    waterfall_plot->axisRect()->setAutoMargins(QCP::msLeft | QCP::msTop | QCP::msBottom);
+//    waterfall_plot->axisRect()->setMargins(QMargins(0, 0, 40, 0));
     connect(waterfall_plot->xAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged), this, &FreqPlotter::clamp_xaxis_range);
 }
 
@@ -473,12 +473,32 @@ QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale
 double FreqPlotter::FreqTicker::getTickStep(const QCPRange &range) {
 
     // 固定 6 个刻度
-    const int tickCount = 6;
+    const int m_tickCount = 6;
 
-    // 计算步长
-    double tick_step = (range.upper - range.lower) / (tickCount - 1);
-    tick_freq_step = tick_step * m_parent->m_fsa / m_parent->m_fft_size;
-    return tick_step;
+    // 1. 计算当前频率范围
+    const double minFreq = (range.lower * m_parent->m_fsa) / m_parent->m_fft_size;
+    const double maxFreq = (range.upper * m_parent->m_fsa) / m_parent->m_fft_size;
+    const double freqSpan = maxFreq - minFreq;
+
+    if (freqSpan <= 0 || m_tickCount < 2)
+        return 1.0; // 防止无效输入
+
+    // 2. 计算原始的频率步长（基于期望的刻度数量）
+    const double rawFreqStep = freqSpan / (m_tickCount - 1);
+
+    // 3. 调整频率步长为易读值（模仿 QCPAxisTicker 的 tssReadability 逻辑）
+    const double magnitude = std::pow(10, std::floor(std::log10(rawFreqStep)));
+    const double mantissa = rawFreqStep / magnitude;
+
+    // 候选值列表（与 tssReadability 相同：1, 2, 2.5, 5, 10）
+    static const QVector<double> candidates = {1.0, 2.0, 2.5, 5.0, 10.0};
+    const double closestMantissa = pickClosest(mantissa, candidates);
+
+    // 4. 计算调整后的频率步长
+    tick_freq_step = closestMantissa * magnitude;
+
+    // 5. 转换为对应的 tick 步长
+    return (tick_freq_step * m_parent->m_fft_size) / m_parent->m_fsa;
 }
 
 int FreqPlotter::FreqTicker::getSubTickCount(double tickStep) {

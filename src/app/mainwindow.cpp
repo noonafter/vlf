@@ -54,10 +54,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->range_slider_db_if,&RangeSlider::upperValueChanged,freqPlotter_if, &FreqPlotter::set_db_max);
 
     connect(ui->range_slider_bin_if,&RangeSlider::lowerValueChanged,[=](int lo){
-        freqPlotter_if->set_bin_min(lo * freqPlotter_if->get_fft_size() / 300);
+        freqPlotter_if->set_bin_min(lo * freqPlotter_if->get_fft_size() / 600);
     });
     connect(ui->range_slider_bin_if,&RangeSlider::upperValueChanged,[=](int up){
-        freqPlotter_if->set_bin_max(up * freqPlotter_if->get_fft_size() / 300);
+        freqPlotter_if->set_bin_max(up * freqPlotter_if->get_fft_size() / 600);
     });
 
     connect(ui->spinBox_subch, QOverload<int>::of(&QSpinBox::valueChanged),vlf_ch[0],&VLFChannel::set_idx_sub_ch);
