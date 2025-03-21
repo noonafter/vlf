@@ -31,6 +31,7 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       last_plot_time(0),
       cnt_plot_time(0),
       freq_bin_step(1),
+      waterfall_started(false),
       map_xsize(1600),
       map_ysize(100),
       time_lower(0),
@@ -70,6 +71,7 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       last_plot_time(0),
       cnt_plot_time(0),
       freq_bin_step(1),
+      waterfall_started(false),
       map_xsize(1600),
       map_ysize(100),
       time_lower(0),
@@ -229,8 +231,14 @@ FreqPlotter::PlotMode FreqPlotter::get_plot_mode() const {
 }
 
 void FreqPlotter::set_plot_mode(PlotMode mode) {
-    spectrum_plot->setVisible(mode == SPECTRUM);
-    waterfall_plot->setVisible(mode == WATERFALL);
+    if (mode == SPECTRUM) {
+        spectrum_plot->setVisible(true);
+        waterfall_plot->setVisible(false);
+    } else {
+        spectrum_plot->setVisible(false);
+        waterfall_plot->setVisible(true);
+        waterfall_started = true;
+    }
     m_plot_mode = mode;
 }
 
@@ -312,7 +320,10 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
 
         // 更新绘图
         spectrum_plot->replot();
-    } else if(m_plot_mode == WATERFALL && waterfall_plot && color_map){
+    }
+
+    // 将m_plot_mode == WATERFALL换为waterfall_started，即时是SPECTRUM模式，任然推送数据到waterfall图
+    if(waterfall_started && waterfall_plot && color_map){
 
         // 所有data向后移动一行，空出第一行
         // 如果在setDataRange或setGradient时，能够接受原有画面消失，可以注释这一行，加快绘图速度

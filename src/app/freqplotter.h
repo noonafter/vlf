@@ -16,6 +16,8 @@
 // 支持功率谱图定点频率测量(双击)
 
 // todo：
+// plot_freq，滑动平均还是得放到自己这，否则spectrum和waterfall需要给外面开两个输入口，绘图对公用参数的读写可能会有问题
+// plot_freq的逻辑也得改，我希望第一次初始化waterfall后，就开始画，后续切走任然画
 // 平均还是得加！！！即时fftsize变化时会清空？？？
 // 支持频率轴采样率及单位动态调整，后续对set_fsa函数进行更改，加上默认单位，
 // 频率轴支持中心频率调整
@@ -127,6 +129,7 @@ private:
     double line_x;
     double line_y;
     // 瀑布图参数
+    bool waterfall_started;
     int map_xsize;
     int map_ysize;
     int time_lower;
