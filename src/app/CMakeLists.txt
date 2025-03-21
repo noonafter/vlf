@@ -15,6 +15,8 @@ set (APP_SRC
     qcustomplot.cpp
     RangeSlider.cpp
     RangeSlider.h
+    findmid.c
+    findmid.h
         )
 
 set(APP_HDRS

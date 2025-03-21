@@ -13,6 +13,7 @@
 #include <complex>
 #include "liquid.h"
 #include "fftw3.h"
+#include "findmid.h"
 
 #define MAX_FFTSIZE_CH (65536)
 #define MIN_FFTSIZE_CH (1024)
@@ -110,6 +111,8 @@ private:
     fftwf_complex *if_outbuf;
     fftwf_plan if_fplans[NUM_FFTPLANS_CH];
 
+    QVector<float> subch_energy;
+    QVector<int> subch_flag;
 
     void roundSeconds(QDateTime &dateTime);
 };
