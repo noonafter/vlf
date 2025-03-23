@@ -5,6 +5,14 @@
 #ifndef VLF_FREQPLOTTER_H
 #define VLF_FREQPLOTTER_H
 
+#if defined(__cplusplus) && __cplusplus >= 201703L
+#define CPP17_OR_LATER 1
+#define IF_CONSTEXPR(...) if constexpr(__VA_ARGS__)
+#else
+#define CPP17_OR_LATER 0
+#define IF_CONSTEXPR(...) if (__VA_ARGS__)
+#endif
+
 #include <QWidget>
 #include "qcustomplot.h"
 
@@ -14,11 +22,9 @@
 // 支持频率轴显示范围动态调整，显示精度自适应调整
 // 支持频率轴拖拽与缩放
 // 支持功率谱图定点频率测量(双击)
+// 支持功率谱图时间平均
 
 // todo：
-// plot_freq，滑动平均还是得放到自己这，否则spectrum和waterfall需要给外面开两个输入口，绘图对公用参数的读写可能会有问题
-// plot_freq的逻辑也得改，我希望第一次初始化waterfall后，就开始画，后续切走任然画
-// 平均还是得加！！！即时fftsize变化时会清空？？？
 // 支持频率轴采样率及单位动态调整，后续对set_fsa函数进行更改，加上默认单位，
 // 频率轴支持中心频率调整
 // 支持dB范围及单位动态调整
@@ -73,6 +79,7 @@ public:
     void set_plot_paused(bool paused);
     void set_frame_per_second(int fps);
     void set_palette(int idx);
+    void set_avg_len(int len);
     void toggle_plot_mode();
     void plot_freq(const QVector<double>& freq_data);
     void plot_freq(const QVector<float>& freq_data);
@@ -128,6 +135,9 @@ private:
     int freq_bin_step; // 频谱图bin间隔
     double line_x;
     double line_y;
+    int avg_len;
+    int buf_in;
+    int buf_out;
     // 瀑布图参数
     bool waterfall_started;
     int map_xsize;
@@ -146,6 +156,9 @@ private:
     QElapsedTimer timer_plot;
     QCPColorGradient color_gradient;
     QMarkLine *mark_line_spectrum;
+    // 后续可以考虑将sum_vector和avg_buffer进行封装，弄一个循环缓冲区求平均的类，包括avg_len，buf_in，buf_out
+    QVector<float> sum_vector;
+    QVector<QVector<float>> avg_buffer;
 
     // TODO：
     //  设置单位？5个单位到底什么意思？只影响计算方式，不影响最终绘图dB，改个label就行
@@ -163,6 +176,7 @@ private:
     void clamp_xaxis_range(const QCPRange &newRange);
     // 根据FFTDisplayMode和fft更新bin_upper等参数
     void update_bin_ranges();
+    int avg_buffer_used();
 
 };
 

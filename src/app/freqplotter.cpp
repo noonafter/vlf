@@ -5,7 +5,7 @@
 // You may need to build the project (run Qt uic code generator) to get "ui_FreqPlotter.h" resolved
 
 #include "freqplotter.h"
-
+#define AVG_BUFFER_CAPACITY (21)
 
 FreqPlotter::FreqPlotter(QWidget *parent)
     : QWidget(parent),
@@ -31,6 +31,11 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       last_plot_time(0),
       cnt_plot_time(0),
       freq_bin_step(1),
+      line_x(0),
+      line_y(0),
+      avg_len(1),
+      buf_in(0),
+      buf_out(0),
       waterfall_started(false),
       map_xsize(1600),
       map_ysize(100),
@@ -41,7 +46,8 @@ FreqPlotter::FreqPlotter(QWidget *parent)
       waterfall_plot(nullptr),
       color_scale(nullptr),
       color_map(nullptr),
-      group(nullptr)
+      group(nullptr),
+      mark_line_spectrum(nullptr)
 {
     register_meta_types_once();
     init();
@@ -71,6 +77,11 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       last_plot_time(0),
       cnt_plot_time(0),
       freq_bin_step(1),
+      line_x(0),
+      line_y(0),
+      avg_len(1),
+      buf_in(0),
+      buf_out(0),
       waterfall_started(false),
       map_xsize(1600),
       map_ysize(100),
@@ -81,7 +92,8 @@ FreqPlotter::FreqPlotter(int fft_size, PlotMode plot_mode, FFTDisplayMode fft_mo
       waterfall_plot(nullptr),
       color_scale(nullptr),
       color_map(nullptr),
-      group(nullptr)
+      group(nullptr),
+      mark_line_spectrum(nullptr)
 {
     register_meta_types_once();
     init();
@@ -104,6 +116,7 @@ void FreqPlotter::init() {
     m_ticker = QSharedPointer<FreqTicker>(new FreqTicker(this));
     color_gradient = QCPColorGradient::gpSpectrum;
     mark_line_spectrum = new QMarkLine(spectrum_plot);
+    avg_buffer.resize(AVG_BUFFER_CAPACITY);
 
     // 对容器进行布局
     layout->addWidget(spectrum_plot);
@@ -188,6 +201,9 @@ int FreqPlotter::get_fft_size() const {
 
 // 是否要加上bin_upmost_display？
 void FreqPlotter::set_fft_size(int size) {
+    if(size < 2){
+        return;
+    }
     m_fft_size = size;
     fft_size_inited = true;
 
@@ -286,6 +302,39 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
         }
     }
 
+    int min_len = qMin(in_size,sum_vector.size());
+    // 更新sum_vector
+    if (avg_len <= 1) {
+        IF_CONSTEXPR(std::is_same<T, float>::value) {
+            memmove(sum_vector.data(), freq_data.constData(), min_len * sizeof(float));
+        } else {
+            for (int i = 0; i < min_len; i++)
+                sum_vector[i] = static_cast<float>(freq_data.at(i)); // 发生static cast
+        }
+        buf_out = buf_in;
+    } else { // avg_len >= 2
+        // 1. 去掉老的数据，保证buf中数据长度小于avg_len，即至少留一个位置给新数据
+        while (avg_buffer_used() >= avg_len) {
+            for (int i = 0; i < sum_vector.size(); i++) {
+                sum_vector[i] -= avg_buffer[buf_out].at(i);
+            }
+            buf_out = (buf_out + 1) % avg_buffer.size();
+        }
+        // 2. 放入最新的数据
+        for (int i = 0; i < min_len; i++) {
+            sum_vector[i] += static_cast<float>(freq_data.at(i));
+        }
+    }
+
+    // 更新avg_buffer
+    IF_CONSTEXPR(std::is_same<T,float>::value){
+        memcpy(avg_buffer[buf_in].data(), freq_data.constData(), min_len * sizeof(float));
+    }else{
+        for(int i = 0; i< min_len;i++)
+            avg_buffer[buf_in][i] = static_cast<float>(freq_data.at(i));
+    }
+    buf_in = (buf_in+1) % avg_buffer.size();
+    float avg_factor = 1.0f/static_cast<float>(qMin(avg_buffer_used(), avg_len));
 
     // 只画要显示的部分,节省资源
     int bin_count_a = bin_max - bin_min + 1;
@@ -301,7 +350,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
             idx_vec = bin_min + i * freq_bin_step;
             x[i] = idx_vec;
             idx_vec = idx_vec < 0 ? m_fft_size + idx_vec : idx_vec;
-            y[i] = static_cast<double>(freq_data[idx_vec]);
+            y[i] = sum_vector[idx_vec]*avg_factor;
         }
         spectrum_plot->graph(0)->setData(x, y);
 
@@ -560,6 +609,14 @@ void FreqPlotter::update_bin_ranges() {
     bin_max = bin_max_limit;
     x_min = x_min_limit;
     x_max = x_max_limit;
+
+    int bin_count_max = bin_max_limit-bin_min_limit+1;
+    sum_vector.resize(bin_count_max);
+    sum_vector.fill(0.0f);
+    for(auto &ele : avg_buffer){
+        ele.resize(bin_count_max);
+        ele.fill(0.0f);
+    }
 }
 
 void FreqPlotter::set_palette(int idx){
@@ -590,6 +647,15 @@ void FreqPlotter::set_palette(int idx){
     color_gradient = static_cast<QCPColorGradient::GradientPreset>(idx);
     color_map->setGradient(color_gradient);
 
+}
+
+void FreqPlotter::set_avg_len(int len) {
+    // 这里一定注意avg_len最大只能取到avg_buffer.size() - 1，保证buf_in=buf_out只表示buf为空，而不表示buf满
+    avg_len = qBound(1, len, avg_buffer.size() - 1);
+}
+
+int FreqPlotter::avg_buffer_used() {
+    return (buf_in + avg_buffer.size() - buf_out) % avg_buffer.size();
 }
 
 

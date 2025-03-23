@@ -229,6 +229,16 @@
            </widget>
           </item>
           <item>
+           <widget class="QSpinBox" name="spinBox_avg_if"/>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="spinBox_fftsize_if">
+            <property name="maximum">
+             <number>65536</number>
+            </property>
+           </widget>
+          </item>
+          <item>
            <spacer name="horizontalSpacer">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -271,7 +281,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>23</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

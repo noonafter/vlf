@@ -65,6 +65,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->spinBox_subch, QOverload<int>::of(&QSpinBox::valueChanged),this,[=](int idx){
         ui->label_subch->setText(QString::number(0.15*idx+10.05));
     });
+    connect(ui->spinBox_avg_if,QOverload<int>::of(&QSpinBox::valueChanged),freqPlotter_if,&FreqPlotter::set_avg_len);
+    connect(ui->spinBox_fftsize_if,QOverload<int>::of(&QSpinBox::valueChanged),freqPlotter_if,&FreqPlotter::set_fft_size);
 
     // 处理业务逻辑，保证线程安全
     // 具体业务逻辑：
