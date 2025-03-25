@@ -290,43 +290,38 @@ void VLFChannel::slot_business_package_enqueued() {
 
 
     int fft_size_idx = 3;
+    unsigned int num_read;
+    float *r_real;
     if(cbufferf_size(ch_inbuf) >= 65536){
-        unsigned int num_read;
-        float *r;
-        cbufferf_read(ch_inbuf, MIN_FFTSIZE_CH << fft_size_idx, &r, &num_read);
-//        memmove(if_inbuf, r, num_read * sizeof(float));
-        for(int i = 0; i < num_read; i++){
-            if_inbuf[i] = r[i] * liquid_hamming(i,num_read);
-        }
-
-        // todo：加窗
+        // 读取数据
+        cbufferf_read(ch_inbuf, MIN_FFTSIZE_CH << fft_size_idx, &r_real, &num_read);
+        // 加窗fft
+        for(int i = 0; i < num_read; i++)
+            if_inbuf[i] = r_real[i] * liquid_hamming(i,num_read);
         fftwf_execute(if_fplans[fft_size_idx]);
-
+        // 转dbm，并推送至绘图模块
         int half_size = (MIN_FFTSIZE_CH << fft_size_idx)/2+1;
         QVector<float> freq_data(half_size);
         float psd_tmp = 10*log10f(MIN_FFTSIZE_CH << fft_size_idx);
         for (int j = 0; j < half_size; j++) {
-            std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(if_outbuf[j]);
+            auto *tmp = reinterpret_cast<std::complex<float> *>(if_outbuf[j]);
             float energy_cnt = std::norm(*tmp);
-            if(energy_cnt <=0){
-                freq_data[j] = -180;
-            } else{
-                freq_data[j] = 10*log10f(energy_cnt) - psd_tmp;
-            }
+            freq_data[j] = (energy_cnt <= 0) ? -180 : 10 * log10f(energy_cnt) - psd_tmp;
         }
         emit subch_freq_if_ready(freq_data);
+        // 调试用：存储时域原始样本点
         if(0){
             QString wfilename = "D:\\project\\vlf\\scripts\\data_if";
             QFile wfile(wfilename);
             wfile.open(QIODevice::Append);
-            wfile.write(reinterpret_cast<const char *>(r), num_read * sizeof(float));
+            wfile.write(reinterpret_cast<const char *>(r_real), num_read * sizeof(float));
         }
+        //使用完毕释放
         cbufferf_release(ch_inbuf, num_read);
     }
 
     // 2. 经过第一级channelizer，输入192KHz，输出24KHz
     // 每次输入8个点，输出16个点。共执行32次，每个通道32点
-    unsigned int num_read;
     std::complex<float> *chlza_in_tmp;
     std::complex<float> chlza_out_tmp[num_ch_chlza];
     while (cbuffercf_size(chlza_inbuf) >= dec_factor_chlza) {
@@ -412,7 +407,7 @@ void VLFChannel::slot_business_package_enqueued() {
 
     // 4.如果buf满，执行fft
     int fftsize_subch = 512;
-    std::complex<float> *r;
+    std::complex<float> *r_cplx;
     float psd_tmp = 10*log10f(512);
     QVector<float> freq_data(512);
     float energy_noise = 10000;
@@ -420,12 +415,12 @@ void VLFChannel::slot_business_package_enqueued() {
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
         // 读取数据
-        cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
+        cbuffercf_read(fft_inbuf[i], fftsize_subch, &r_cplx, &num_read);
 
         // 能量检测，方便后续估计噪声能量
         subch_energy[i] = 0;
         for (int j = 0; j < num_read; j++) {
-            subch_energy[i] += std::norm(*(r + j));
+            subch_energy[i] += std::norm(*(r_cplx + j));
         }
 
         // 调试用：存指定SMA通道和subch的iq数据
@@ -434,7 +429,7 @@ void VLFChannel::slot_business_package_enqueued() {
             float energy_tmp = subch_energy[i];
             QFile wfile("D:\\project\\vlf\\scripts\\subch_" + QString::number(i));
             wfile.open(QIODevice::Append);
-            wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
+            wfile.write(reinterpret_cast<const char *>(r_cplx), 512 * sizeof(fftwf_complex));
         }
 
         // 指定子信道，做加窗fft，推至绘图模块
@@ -442,8 +437,8 @@ void VLFChannel::slot_business_package_enqueued() {
             // 加窗fft
             for (int j = 0; j < num_read; j++) {
                 float window_coe = liquid_hamming(j, num_read);
-                in512[j][0] = r[j].real() * window_coe;
-                in512[j][1] = r[j].imag() * window_coe;
+                in512[j][0] = r_cplx[j].real() * window_coe;
+                in512[j][1] = r_cplx[j].imag() * window_coe;
             }
             fftwf_execute(fplan512);
             // fft值转dbm
