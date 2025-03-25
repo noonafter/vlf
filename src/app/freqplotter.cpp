@@ -334,7 +334,7 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
             avg_buffer[buf_in][i] = static_cast<float>(freq_data.at(i));
     }
     buf_in = (buf_in+1) % avg_buffer.size();
-    float avg_factor = 1.0f/static_cast<float>(qMin(avg_buffer_used(), avg_len));
+    float avg_factor = 1.0f/static_cast<float>(qBound(1, avg_buffer_used(), avg_len));
 
     // 只画要显示的部分,节省资源
     int bin_count_a = bin_max - bin_min + 1;

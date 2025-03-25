@@ -19,7 +19,7 @@
 #define RAWDATA_BUF_SIZE (256*1024) // 262144
 #define NUM_CHLZB (5)
 #define NUM_CH_SUB (334)
-#define MAX_FFTSIZE_SUBCH (512)
+#define MAX_FFTSIZE_SUBCH (4096)
 #define HAVE_SIG (2)
 
 VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZB),
@@ -97,8 +97,8 @@ VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(
     for (int i = 0; i < NUM_CH_SUB; i++) {
         fft_inbuf[i] = cbuffercf_create(MAX_FFTSIZE_SUBCH);
     }
-    in512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * 512);
-    out512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * 512);
+    in512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * MAX_FFTSIZE_SUBCH);
+    out512 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex) * MAX_FFTSIZE_SUBCH);
     fplan512 = fftwf_plan_dft_1d(512, in512, out512, FFTW_FORWARD, FFTW_MEASURE);
 
     ch_inbuf = cbufferf_create(MAX_FFTSIZE_CH);
@@ -414,71 +414,63 @@ void VLFChannel::slot_business_package_enqueued() {
     int fftsize_subch = 512;
     std::complex<float> *r;
     float psd_tmp = 10*log10f(512);
-    for(int i = 0; i<NUM_CH_SUB;i++){
-        if(cbuffercf_size(fft_inbuf[i]) >= fftsize_subch){
-            cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
-            if(i == -1){
-                QString wfilename = "D:\\alc\\c\\vlf\\scripts\\data_subch" + QString::number(i);
-                QFile wfile(wfilename);
-                wfile.open(QIODevice::Append);
-                wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
-            }
-
-//            memmove(in512, r, 512* sizeof(fftwf_complex));
-            for(int i = 0; i < num_read; i++){
-                in512[i][0] = r[i].real() * liquid_hamming(i,num_read);
-                in512[i][1] = r[i].imag() * liquid_hamming(i,num_read);
-            }
-            fftwf_execute(fplan512);
-            QVector<float> freq_data(512);
-
-            if(i == idx_sub_ch_display){
-
-                for (int j = 0; j < 512; j++) {
-                    std::complex<float> *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
-                    float energy_cnt = std::norm(*tmp);
-                    if(energy_cnt <=0){
-                        freq_data[j] = -180;
-                    } else{
-                        freq_data[j] = 10*log10f(energy_cnt) - psd_tmp;
-                    }
-                }
-                emit subch_freq_ddc_ready(freq_data);
-            }
-
-        }
-    }
-
-    // 能量检测，并找出最小能量作为噪声
+    QVector<float> freq_data(512);
     float energy_noise = 10000;
+
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
+        // 读取数据
         cbuffercf_read(fft_inbuf[i], fftsize_subch, &r, &num_read);
+
+        // 能量检测，方便后续估计噪声能量
         subch_energy[i] = 0;
-        // 累加时域上512点，得到能量总值
         for (int j = 0; j < num_read; j++) {
             subch_energy[i] += std::norm(*(r + j));
         }
 
-//        // 存对于ch和subch的iq数据
-//        if(m_chan_idx == TARGET_SMA_CH && i == 54){
-//            float energy_tmp = subch_energy[i];
-//            QFile wfile("D:\\project\\vlf\\scripts\\subch_"+QString::number(i));
-//            wfile.open(QIODevice::Append);
-//            wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
-//        }
+        // 调试用：存指定SMA通道和subch的iq数据
+        // if(m_chan_idx == TARGET_SMA_CH && i == 54){ // 这里由于自己的接收机就一个通道在跑，所以直接指定子信道就行
+        if (false && i == 54) {
+            float energy_tmp = subch_energy[i];
+            QFile wfile("D:\\project\\vlf\\scripts\\subch_" + QString::number(i));
+            wfile.open(QIODevice::Append);
+            wfile.write(reinterpret_cast<const char *>(r), 512 * sizeof(fftwf_complex));
+        }
 
+        // 指定子信道，做加窗fft，推至绘图模块
+        if (i == idx_sub_ch_display) {
+            // 加窗fft
+            for (int j = 0; j < num_read; j++) {
+                float window_coe = liquid_hamming(j, num_read);
+                in512[j][0] = r[j].real() * window_coe;
+                in512[j][1] = r[j].imag() * window_coe;
+            }
+            fftwf_execute(fplan512);
+            // fft值转dbm
+            for (int j = 0; j < 512; j++) {
+                auto *tmp = reinterpret_cast<std::complex<float> *>(out512[j]);
+                float energy_cnt = std::norm(*tmp);
+                freq_data[j] = (energy_cnt <= 0) ? -180 : 10 * log10f(energy_cnt) - psd_tmp;
+            }
+            // 并推至绘图模块
+            emit subch_freq_ddc_ready(freq_data);
+        }
 
     }
 
 
+    // 分位数，估计噪声能量
     float subch_energy_back[NUM_CH_SUB];
     if (cbuffercf_size(fft_inbuf[0]) >= fftsize_subch) {
         memmove(subch_energy_back, subch_energy.constData(), NUM_CH_SUB * sizeof(subch_energy[0]));
-        energy_noise = quickselect(subch_energy_back, 0, NUM_CH_SUB - 1, 167);
+        energy_noise = quickselect(subch_energy_back, 0, NUM_CH_SUB - 1, 111);
+        qDebug() << "noise energy all: " << 10* log10f(energy_noise);
+//        energy_noise = quickselect(subch_energy_back, 0, 198, 78);
+//        qDebug() << "noise energy first: " << 10* log10f(energy_noise);
+//        energy_noise = quickselect(subch_energy_back, 199, 333, 53);
+//        qDebug() << "noise energy second: " << 10* log10f(energy_noise);
     }
-
-// 存num_save次对应ch和subch的energy
+    // 调试用：存num_save次对应ch和subch的energy
     static int num_save = 0;
     if(num_save>0  && cbuffercf_size(fft_inbuf[0]) >= fftsize_subch){
         QFile wfile("D:\\project\\vlf\\scripts\\energy");
@@ -491,7 +483,9 @@ void VLFChannel::slot_business_package_enqueued() {
         }
         num_save -= 1;
     }
-    // 得到所有subch的能量后，计算subch_flag，存完数据release
+
+
+    // 判断信号有无：得到所有子信道能量，和噪声能量后，判断信号有无，结果存入subch_flag
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
         // 根据相对能量判断是否有信号，结果放入subch_flag
@@ -499,24 +493,23 @@ void VLFChannel::slot_business_package_enqueued() {
         if(energy_ratio > 6.3){
             //有信号，找到极大值
             for(;i < NUM_CH_SUB-1 && subch_energy[i+1] > subch_energy[i];i++);
+            // 极大值标记有信号
             subch_flag[i] = HAVE_SIG;
             qInfo() << "have sig: " << 10.05+0.15*i;
+            // 跳过后续下坡值
             for(;i < NUM_CH_SUB-1 && subch_energy[i+1] < subch_energy[i];i++);
-
-            if(i > NUM_CH_SUB-1){
-                i = NUM_CH_SUB-1;
-            }
-
         }else if(subch_flag[i] > 0){
             subch_flag[i] -= 1;
         }
 
-        // 存文件
+        // todo:存文件包括头
+
 
     }
     if(cbuffercf_size(fft_inbuf[0]) >= fftsize_subch)
-    qInfo() << "end once----------------------------------";
+        qInfo() << "end once----------------------------------";
 
+    // 处理完之后release
     for(int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++){
         cbuffercf_release(fft_inbuf[i], fftsize_subch);
     }
