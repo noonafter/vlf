@@ -283,7 +283,8 @@ void VLFChannel::slot_business_package_enqueued() {
     // 1. 将数据转为complex<float>
     for (int i = 0; i < 256; i++) {
         int32_t tmp = qToBigEndian(*reinterpret_cast<const int32_t *>((pack_data.mid(4 * i, 4).constData())));
-        float tmp_float = (float) (tmp * (1.0 / 2147483648.0)); // 1<<31
+        // 根据时域信号进行校准（功率-30dbm：vp=10mv），系数接近1/sqrt2
+        float tmp_float = (float) (tmp * (1.0 / 2147483648.0 / 1.3717871555)); // 1<<31
         cbuffercf_push(chlza_inbuf, tmp_float); // float -> complex<float>
         cbufferf_push(ch_inbuf, tmp_float);
     }
