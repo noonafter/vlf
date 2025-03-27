@@ -116,6 +116,7 @@ void FreqPlotter::init() {
     m_ticker = QSharedPointer<FreqTicker>(new FreqTicker(this));
     color_gradient = QCPColorGradient::gpSpectrum;
     mark_line_spectrum = new QMarkLine(spectrum_plot);
+    freq_suffix = "Hz";
     avg_buffer.resize(AVG_BUFFER_CAPACITY);
 
     // 对容器进行布局
@@ -154,6 +155,11 @@ void FreqPlotter::init_spectrum() {
     connect(spectrum_plot, &QCustomPlot::mouseDoubleClick, this, [=](QMouseEvent *event){
         line_x = spectrum_plot->xAxis->pixelToCoord(event->pos().x());
         mark_line_spectrum->set_pos(line_x);
+        // 更新markline text
+        if(spectrum_plot->graph(0)){
+            line_y = spectrum_plot->graph(0)->data()->findBegin(line_x)->value;
+        }
+        update_mark_line_text(line_x, line_y);
         spectrum_plot->replot();
     });
 }
@@ -221,8 +227,9 @@ double FreqPlotter::get_sample_rate() const {
     return m_fsa;
 }
 
-void FreqPlotter::set_sample_rate(double rate) {
+void FreqPlotter::set_sample_rate(double rate, const QString &suffix) {
     m_fsa = rate;
+    freq_suffix = suffix;
 }
 
 FreqPlotter::FFTDisplayMode FreqPlotter::get_fft_display_mode() const {
@@ -355,17 +362,10 @@ void FreqPlotter::plot_freq_impl(const QVector<T>& freq_data) {
         spectrum_plot->graph(0)->setData(x, y);
 
         // 更新markline
-        if (line_x < bin_min) {
-            line_x = bin_min;
-        } else if (line_x > bin_max) {
-            line_x = bin_max;
-        }
-        QString txt_label = QString("%1Hz\n%2dBm").arg(m_fsa/m_fft_size*line_x);
-        if(spectrum_plot->graph(0)){
+        if( spectrum_plot->graph(0)){
             line_y = spectrum_plot->graph(0)->data()->findBegin(line_x)->value;
-            txt_label = txt_label.arg((int) line_y);
         }
-        mark_line_spectrum->set_text(txt_label);
+        update_mark_line_text(line_x,line_y);
 
         // 更新绘图
         spectrum_plot->replot();
@@ -527,7 +527,7 @@ QString FreqPlotter::FreqTicker::getTickLabel(double tick, const QLocale &locale
     double freq = tick * m_parent->m_fsa / m_parent->m_fft_size;
 
     // 格式化标签（强制使用 'f' 格式，避免科学计数法）
-    return QString::number(freq, 'f', dynamicPrecision) + " Hz";
+    return QString::number(freq, 'f', dynamicPrecision) + m_parent->freq_suffix;
 }
 
 double FreqPlotter::FreqTicker::getTickStep(const QCPRange &range) {
@@ -656,6 +656,18 @@ void FreqPlotter::set_avg_len(int len) {
 
 int FreqPlotter::avg_buffer_used() {
     return (buf_in + avg_buffer.size() - buf_out) % avg_buffer.size();
+}
+
+void FreqPlotter::update_mark_line_text(double x, double y) {
+
+    if (x < bin_min) {
+        x = bin_min;
+    } else if (x > bin_max) {
+        x = bin_max;
+    }
+
+    QString txt_label = QString("%1%2\n%3dBm").arg(m_fsa/m_fft_size*x).arg(freq_suffix).arg((int) y);
+    mark_line_spectrum->set_text(txt_label);
 }
 
 

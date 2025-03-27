@@ -113,8 +113,10 @@ private:
 
     QVector<float> subch_energy;
     QVector<int> subch_flag;
+    QVector<bool> subch_state;
 
     void roundSeconds(QDateTime &dateTime);
+    bool is_local_extreme(const float* energy, int idx);
 };
 
 

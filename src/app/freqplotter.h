@@ -23,16 +23,14 @@
 // 支持频率轴拖拽与缩放
 // 支持功率谱图定点频率测量(双击)
 // 支持功率谱图时间平均
+// 支持频率轴采样率、单位后缀动态调整，默认为Hz
 
 // todo：
-// 支持频率轴采样率及单位动态调整，后续对set_fsa函数进行更改，加上默认单位，
-// 频率轴支持中心频率调整
+// 支持频率轴偏置（中心频率调整）
 // 支持dB范围及单位动态调整
 // 支持功率谱图频率轴绘图间隔动态调整，默认间隔1
-
 // 支持功率谱图峰值显示，AB标签
 // 支持瀑布图（色图）尺寸及调色板动态调整
-// 模式切换后，瀑布图任然一直在画，加一个mapinited开关，开始时关闭不画map，一旦切换到了waterfall就打开
 // 画图plot_freq_impl中校验可能要改，根据bin_display校验，而不是count
 
 class QMarkLine;
@@ -64,7 +62,7 @@ public:
     int get_fft_size() const;
     void set_fft_size(int size);
     double get_sample_rate() const;
-    void set_sample_rate(double rate);
+    void set_sample_rate(double rate, const QString &suffix = "Hz");
     FFTDisplayMode get_fft_display_mode() const;
     void set_fft_display_mode(FFTDisplayMode mode);
     PlotMode get_plot_mode() const;
@@ -139,7 +137,7 @@ private:
     int buf_in;
     int buf_out;
     // 瀑布图参数
-    bool waterfall_started;
+    bool waterfall_started; // 一旦waterfall打开，即使模式不是waterfall，也进行绘制
     int map_xsize;
     int map_ysize;
     int time_lower;
@@ -156,6 +154,7 @@ private:
     QElapsedTimer timer_plot;
     QCPColorGradient color_gradient;
     QMarkLine *mark_line_spectrum;
+    QString freq_suffix;
     // 后续可以考虑将sum_vector和avg_buffer进行封装，弄一个循环缓冲区求平均的类，包括avg_len，buf_in，buf_out
     QVector<float> sum_vector;
     QVector<QVector<float>> avg_buffer;
@@ -176,6 +175,7 @@ private:
     void clamp_xaxis_range(const QCPRange &newRange);
     // 根据FFTDisplayMode和fft更新bin_upper等参数
     void update_bin_ranges();
+    void update_mark_line_text(double x, double y);
     int avg_buffer_used();
 
 };

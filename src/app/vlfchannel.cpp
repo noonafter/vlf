@@ -20,11 +20,16 @@
 #define NUM_CHLZB (5)
 #define NUM_CH_SUB (334)
 #define MAX_FFTSIZE_SUBCH (4096)
-#define HAVE_SIG (2)
+
+constexpr float SNR_THREASHOLD = 6.3f;
+constexpr int HAVE_SIG_MAX = 15;
+constexpr int HAVE_SIG_THD = 10;
+constexpr int NO_SIG_THD = 5;
+constexpr int NEIGHBOR_RANGE = 1;
 
 VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZB),
                                           chlzb(NUM_CHLZB), fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB),
-                                          subch_energy(NUM_CH_SUB),subch_flag(NUM_CH_SUB) {
+                                          subch_energy(NUM_CH_SUB),subch_flag(NUM_CH_SUB,0),subch_state(NUM_CH_SUB,false) {
     m_queue = ReaderWriterQueue<QByteArray>(512);
     ch_info.open_state = true;
     last_channel_params = QByteArray(16, '\0');
@@ -61,7 +66,7 @@ VLFChannel::VLFChannel(QObject *parent) : QObject(parent), rawdata_writer(RAWDAT
 
 VLFChannel::VLFChannel(int idx) : rawdata_writer(RAWDATA_BUF_SIZE), chlzb_inbuf(NUM_CHLZB), chlzb(NUM_CHLZB),
                                   fft_inbuf(NUM_CH_SUB), fft_outbuf(NUM_CH_SUB),
-                                  subch_energy(NUM_CH_SUB),subch_flag(NUM_CH_SUB){
+                                  subch_energy(NUM_CH_SUB),subch_flag(NUM_CH_SUB,0),subch_state(NUM_CH_SUB,false){
     ch_info.channel_id = idx;
 
     m_queue = ReaderWriterQueue<QByteArray>(512);
@@ -484,21 +489,46 @@ void VLFChannel::slot_business_package_enqueued() {
     // 判断信号有无：得到所有子信道能量，和噪声能量后，判断信号有无，结果存入subch_flag
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
-        // 根据相对能量判断是否有信号，结果放入subch_flag
+        // 得到SNR
         float energy_ratio = subch_energy[i] / energy_noise;
-        if(energy_ratio > 6.3){
-            //有信号，找到极大值
-            for(;i < NUM_CH_SUB-1 && subch_energy[i+1] > subch_energy[i];i++);
-            // 极大值标记有信号
-            subch_flag[i] = HAVE_SIG;
-            qInfo() << "have sig: " << 10.05+0.15*i;
-            // 跳过后续下坡值
-            for(;i < NUM_CH_SUB-1 && subch_energy[i+1] < subch_energy[i];i++);
-        }else if(subch_flag[i] > 0){
-            subch_flag[i] -= 1;
+
+        // 判断相邻信道是否有信号
+        bool neighbor_has_signal = false;
+        for(int j = qMax(0,i-NEIGHBOR_RANGE);j<=qMin(NUM_CH_SUB-1,i+NEIGHBOR_RANGE);j++){
+            if(j != i && subch_state[j]){
+                neighbor_has_signal = true;
+                break;
+            }
         }
 
-        // todo:存文件包括头
+        // 更新subch_flag
+        if(energy_ratio > SNR_THREASHOLD){
+            if(!neighbor_has_signal && is_local_extreme(subch_energy.constData(),i)){
+                subch_flag[i] = std::min(subch_flag[i]+1,HAVE_SIG_MAX);
+            }
+
+        }else{
+            subch_flag[i] = std::min(subch_flag[i]-1,0);
+        }
+
+        // 更新信道状态
+        if(!subch_state[i] && subch_flag[i] >= HAVE_SIG_THD){
+            subch_state[i] = true; // 信号出现
+
+        }else if(subch_state[i] && subch_flag[i] <= NO_SIG_THD){
+            subch_state[i] = false; // 信号消失
+
+        }
+
+        if(subch_state[i]){
+            qDebug() << "have sig: " << 10.05+i*0.15;
+            // todo:存文件包括头
+//            // 读取数据
+//            cbuffercf_read(fft_inbuf[i], fftsize_subch, &r_cplx, &num_read);
+//            QFile wfile("D:\\project\\vlf\\scripts\\subch_" + QString::number(i));
+//            wfile.open(QIODevice::Append);
+//            wfile.write(reinterpret_cast<const char *>(r_cplx), 512 * sizeof(fftwf_complex));
+        }
 
 
     }
@@ -529,6 +559,27 @@ void VLFChannel::roundSeconds(QDateTime &dateTime) {
 
 void VLFChannel::set_idx_sub_ch(int idx) {
     idx_sub_ch_display = idx;
+}
+
+bool VLFChannel::is_local_extreme(const float *energy, int idx) {
+    if(idx <0 || idx>NUM_CH_SUB-1)
+        return false;
+
+    if(idx == 0){
+        energy[idx] > energy[idx+1];
+        return true;
+    }
+
+    if(idx == NUM_CH_SUB-1){
+        energy[idx] > energy[idx-1];
+        return true;
+    }
+
+    if(energy[idx] > energy[idx-1] && energy[idx] > energy[idx+1]){
+        return true;
+    }
+
+    return false;
 }
 
 
