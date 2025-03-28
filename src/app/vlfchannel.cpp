@@ -21,7 +21,7 @@
 #define NUM_CH_SUB (334)
 #define MAX_FFTSIZE_SUBCH (4096)
 
-constexpr float SNR_THREASHOLD = 6.3f;
+constexpr float SNR_THREASHOLD = 8.0f; // dB
 constexpr int HAVE_SIG_MAX = 15;
 constexpr int HAVE_SIG_THD = 10;
 constexpr int NO_SIG_THD = 5;
@@ -416,7 +416,7 @@ void VLFChannel::slot_business_package_enqueued() {
     std::complex<float> *r_cplx;
     float psd_tmp = 10*log10f(512);
     QVector<float> freq_data(512);
-    float energy_noise = 10000;
+    float noise_energy_db = 10000.0f;
 
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
@@ -464,12 +464,13 @@ void VLFChannel::slot_business_package_enqueued() {
     float subch_energy_back[NUM_CH_SUB];
     if (cbuffercf_size(fft_inbuf[0]) >= fftsize_subch) {
         memmove(subch_energy_back, subch_energy.constData(), NUM_CH_SUB * sizeof(subch_energy[0]));
-        energy_noise = quickselect(subch_energy_back, 0, NUM_CH_SUB - 1, 111);
-        qDebug() << "noise energy all: " << 10* log10f(energy_noise);
-//        energy_noise = quickselect(subch_energy_back, 0, 198, 78);
-//        qDebug() << "noise energy first: " << 10* log10f(energy_noise);
-//        energy_noise = quickselect(subch_energy_back, 199, 333, 53);
-//        qDebug() << "noise energy second: " << 10* log10f(energy_noise);
+        noise_energy_db = quickselect(subch_energy_back, 0, NUM_CH_SUB - 1, 133);
+        noise_energy_db = noise_energy_db > 1e-18 ? 10 * log10f(noise_energy_db) : -180;
+        qDebug() << "noise energy all: " << noise_energy_db;
+//        noise_energy_db = quickselect(subch_energy_back, 0, 198, 78);
+//        qDebug() << "noise energy first: " << 10* log10f(noise_energy_db);
+//        noise_energy_db = quickselect(subch_energy_back, 199, 333, 53);
+//        qDebug() << "noise energy second: " << 10* log10f(noise_energy_db);
     }
     // 调试用：存num_save次对应ch和subch的energy
     static int num_save = 0;
@@ -490,8 +491,8 @@ void VLFChannel::slot_business_package_enqueued() {
     for (int i = 0; i < NUM_CH_SUB && cbuffercf_size(fft_inbuf[i]) >= fftsize_subch; i++) {
 
         // 得到SNR
-        float energy_ratio = subch_energy[i] / energy_noise;
-
+        float subch_energy_db = subch_energy[i] > 1e-18 ? 10 * log10f(subch_energy[i]) : -180;
+        float snr_ch = subch_energy_db - noise_energy_db;
         // 判断相邻信道是否有信号
         bool neighbor_has_signal = false;
         for(int j = qMax(0,i-NEIGHBOR_RANGE);j<=qMin(NUM_CH_SUB-1,i+NEIGHBOR_RANGE);j++){
@@ -502,11 +503,12 @@ void VLFChannel::slot_business_package_enqueued() {
         }
 
         // 更新subch_flag
-        if(energy_ratio > SNR_THREASHOLD){
+        float snr_high = snr_ch - SNR_THREASHOLD;
+        if(snr_high > 0){
+            int level_snr = std::ceil(0.3333333333f*snr_high);
             if(!neighbor_has_signal && is_local_extreme(subch_energy.constData(),i)){
-                subch_flag[i] = std::min(subch_flag[i]+1,HAVE_SIG_MAX);
+                subch_flag[i] = std::min(subch_flag[i]+level_snr,HAVE_SIG_MAX);
             }
-
         }else{
             subch_flag[i] = std::min(subch_flag[i]-1,0);
         }
